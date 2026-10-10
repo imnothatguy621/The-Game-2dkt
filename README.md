@@ -22,3 +22,10 @@ New worlds: CINDER (volcanic moon of the gas giant Tempest) and AURELIA (ringed 
 
 ## Checking your deploy
 The title screen shows the build date under the online button. If your site doesn't show the newest date, the new index.html wasn't uploaded to the top level of the repo.
+
+## Voice assistant (ORIN / VELA)
+Hold the ` key (or tap TALK) and speak. Works in Chrome, Edge and Safari. The assistant uses a British voice from your browser.
+Out of the box it answers with built-in replies and runs game commands. For full free-form conversation, add an
+`ANTHROPIC_API_KEY` environment variable to the Vercel project (Settings → Environment Variables) and redeploy;
+`api/assistant.js` then answers through Claude (model `claude-haiku-4-5`, override with `ASSISTANT_MODEL`). It is rate-limited
+to 20 requests a minute per visitor.
