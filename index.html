@@ -391,7 +391,7 @@ details summary{cursor:pointer;color:var(--cyan);font-size:12px;letter-spacing:.
       <div class="cta">
         <button class="go chamfer" id="launch">LAUNCH</button>
         <button class="ghost" id="menuOnline" type="button">PLAY ONLINE · with friends</button>
-        <span class="label" id="buildTag" style="opacity:.7">Build 10 Oct 2026 · GOLIATH HX-2</span>
+        <span class="label" id="buildTag" style="opacity:.7">Build 10 Oct 2026 · ADD-ONS</span>
         <button class="ghost" id="creditsBtn">About &amp; credits</button>
         <button class="ghost" id="menuCheat">Controls</button>
         <button class="ghost touch-only" id="menuPanel">Control panel</button>
@@ -458,6 +458,7 @@ details summary{cursor:pointer;color:var(--cyan);font-size:12px;letter-spacing:.
         <button class="ghost" id="pauseRace">Sky races</button>
         <button class="ghost" id="pausePhoto">Photo mode</button>
         <button class="ghost" id="pauseOnline">Online play · 7</button>
+        <button class="ghost" id="pauseMods">Suit add-ons · 8</button>
         <button class="ghost" id="toMenu">Main menu</button>
       </div>
       <div class="cta touch-only">
@@ -2046,9 +2047,9 @@ function segDist2(a, b, p) {
   return dx*dx + dy*dy + dz*dz;
 }
 const altDisp = y => y < 1000 ? y : 1000 + (y - 1000) * 33;
-const powW = () => ({ balanced:1, weapons:1.35, thrust:.85, shields:.9 })[G.power];
-const powT = () => ({ balanced:1, weapons:.85, thrust:1.25, shields:.9 })[G.power];
-const powS = () => ({ balanced:1, weapons:1.1, thrust:1.05, shields:.7 })[G.power];
+const powW = () => ({ balanced:1, weapons:1.35, thrust:.85, shields:.9 })[G.power] * modK('wpn');
+const powT = () => ({ balanced:1, weapons:.85, thrust:1.25, shields:.9 })[G.power] * modK('thr');
+const powS = () => ({ balanced:1, weapons:1.1, thrust:1.05, shields:.7 })[G.power] * modK('arm');
 
 /* ================= Rig: pilot + armor ================= */
 const std = (c, m = .1, r = .8) => new THREE.MeshStandardMaterial({ color:c, metalness:m, roughness:r });
@@ -3180,6 +3181,7 @@ function heavyZoneBroken(z) {
   explode(P.pos.clone().add(t1.set(rand(-2, 2), rand(0, 3), rand(-2, 2))), 1.2, 0xffa040);
   const lines = { armL:'Left cannon arm torn off.', armR:'Right cannon arm torn off.', legL:'Left leg actuator gone. Walking will be rough.', legR:'Right leg actuator gone. Walking will be rough.', helmet:'Hood blown off. Visor feed degraded.', chest:'Hex core cracked. Beam offline.', abdomen:'Waist armor breached.', back:'Exhaust stacks hit. Jets are weak.' };
   say('GOLIATH: ' + lines[z], { prio:true });
+  modPartLost(z);
 }
 function heavyExit(destroyed, blast) {
   if (!P.heavy && !P.hrig) return;
@@ -5043,7 +5045,7 @@ const intersections = [];
 for (let a = -9; a <= 9; a++) for (let b = -9; b <= 9; b++) if ((a || b) && !(Math.abs(a) <= 1 && Math.abs(b) <= 1)) intersections.push([a * CELL, b * CELL]);
 function startMode(mode) {
   if (EARTH_SET && WORLD_ID !== 'earth') setWorld('earth');
-  G.mode = mode; clearWorld(); G.score = 0; G.wave = 0; G.betweenT = 0; G.tipT = 30;
+  G.mode = mode; clearWorld(); G.score = 0; G.wave = 0; if (MODS) { MODS.earned.length = 0; MODS.offerWave = -1; MODS.drops.length = 0; MODS.sig = ''; } G.betweenT = 0; G.tipT = 30;
   comms.queue.length = 0; comms.cur = null;
   if (mode === 'free') {
     resetPilot(true);
@@ -5078,6 +5080,7 @@ function updateCombat(dt) {
   if (G.betweenT > 0) { G.betweenT -= dt; if (G.betweenT <= 0) nextWave(); return; }
   if (!enemies.length) {
     G.betweenT = 5;
+    if (G.wave && G.wave % 5 === 0) setTimeout(modOffer, 1600);
     suitHp = Math.min(SUIT().hp, suitHp + SUIT().hp * .35); P.flares = 6;
     if (G.wave) say(`Wave ${G.wave} cleared. Patching armor and restocking flares. Five seconds.`, { prio:true });
   }
@@ -5982,12 +5985,12 @@ function updateHudStatic() {
   const W_ = (k, n, ok) => `<div class="wpn${ok ? '' : ' off'}"><b>${k}</b><span>${n}</span><span id="w_${k.replace(/\W/g, '')}"></span></div>`;
   if (P.heavy) {
     $('wpnBox').innerHTML = W_('LMB', 'Right arm cannon', true) + W_('RMB', 'Left arm cannon', true) + W_('E', 'Hex beam', true) + W_('Q', 'Rocket barrage', true)
-      + W_('M', 'Punch', true) + W_('G', 'Ground slam', true) + W_('R', 'Rocket fist', true) + W_('F', 'Hard-light shield', true) + W_('V', 'Flares', true) + W_('J', 'Climb out', true);
+      + W_('M', 'Punch', true) + W_('G', 'Ground slam', true) + W_('R', 'Rocket fist', true) + W_('F', 'Hard-light shield', true) + W_('V', 'Flares', true) + W_('J', 'Climb out', true) + W_('8', modHudLabel(), true);
     return;
   }
   $('wpnBox').innerHTML = W_('LMB', 'Right blaster', true) + W_('RMB', 'Left blaster', true) + W_('E', s.beam === 'nano' ? 'Nano-beams' : 'Chest beam', true)
     + W_('Q', `Micro-missiles ×${s.missiles}`, s.missiles > 0) + W_('T', 'Smart lasers', s.lasers) + W_('R', 'Minigun', s.minigun)
-    + W_('M', 'Punch / hold: grab', true) + W_('F', s.ability === 'blades' ? 'Plate shield' : 'Hard-light shield', true) + W_('V', 'Flares', true) + W_('G', ({ blades:'Forearm blades', swarm:'Swarm plates', morph:'Morph limbs', camo:'Active camo', nova:'Nova pulse', overcharge:'Overcharge', cutter:'Plasma cutter', bullettime:'Slow-mo', phase:'Phase shift', claw:'Rescue claws', sonic:'Sonic pulse', sonar:'Searchlights + sonar', lift:'Lift and throw cars', repair:'Repair spray' })[s.ability] || 'No ability', !!s.ability) + W_('U', 'GOLIATH shell', true);
+    + W_('M', 'Punch / hold: grab', true) + W_('F', s.ability === 'blades' ? 'Plate shield' : 'Hard-light shield', true) + W_('V', 'Flares', true) + W_('G', ({ blades:'Forearm blades', swarm:'Swarm plates', morph:'Morph limbs', camo:'Active camo', nova:'Nova pulse', overcharge:'Overcharge', cutter:'Plasma cutter', bullettime:'Slow-mo', phase:'Phase shift', claw:'Rescue claws', sonic:'Sonic pulse', sonar:'Searchlights + sonar', lift:'Lift and throw cars', repair:'Repair spray' })[s.ability] || 'No ability', !!s.ability) + W_('U', 'GOLIATH shell', true) + W_('8', modHudLabel(), true);
 }
 let hudT = 0;
 function drawBracket(x, y, s, col, lw) {
@@ -6444,7 +6447,7 @@ $('chatForm').addEventListener('submit', e => { e.preventDefault(); const v = $(
 $('chatIn').addEventListener('keydown', e => { if (e.key === 'Escape') { e.preventDefault(); closeChat(); } e.stopPropagation(); });
 
 /* ================= Screens & input ================= */
-const SCREENS = ['menu', 'pause', 'dead', 'win', 'lab', 'credits', 'cheat', 'cpanel', 'starmap', 'apanel', 'rpanel', 'npanel'];
+const SCREENS = ['menu', 'pause', 'dead', 'win', 'lab', 'credits', 'cheat', 'cpanel', 'starmap', 'apanel', 'rpanel', 'npanel', 'mpanel'];
 /* ---- controls cheat sheet ---- */
 const KEYMAP = [
   ['Move', [['W A S D', 'Walk or fly'], ['Mouse', 'Look and aim (click to capture)'], ['Space / C', 'Jump or climb / descend'], ['Shift', 'Run or boost'], ['Shift + Space', 'Ground launch (suited, on the ground)'], ['Z (hold)', 'Hover lock'], ['A A / D D', 'Double-tap: barrel roll (dodges missiles)'], ['S S', 'Double-tap at speed: air brake shockwave'], ['X', 'Supersonic mode · vents coolant when the thrusters overheat'], ['Arrows', 'Look without a mouse']]],
@@ -10745,6 +10748,264 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyR') { e.preventDefault(); rocketFist(); }
 }, true);
 
+/* ================= ORIN / VELA field support: a supply drone that brings replacement GOLIATH parts, and suit add-ons ================= */
+var MODS;
+const MOD_DEFS = [
+  { id:'plating',   name:'Reactive plating',   sub:'Takes 20% less damage',              zone:'chest',  k:{ arm:.8 } },
+  { id:'thrusters', name:'Afterburner nozzles', sub:'+15% thrust and top speed',         zone:'back',   k:{ thr:1.15 } },
+  { id:'repulsors', name:'Focused repulsors',  sub:'+25% weapon damage',                 zone:'armR',   k:{ wpn:1.25 } },
+  { id:'cells',     name:'Capacitor cells',    sub:'Power recharges much faster',        zone:'abdomen' },
+  { id:'nanites',   name:'Nanite weave',       sub:'Armor slowly repairs itself',        zone:'chest' },
+  { id:'rack',      name:'Extra missile rack', sub:'+4 micro-missiles, faster reload',   zone:'armL' },
+  { id:'sinks',     name:'Heat sinks',         sub:'Weapons cool down twice as fast',    zone:'back' },
+];
+const MOD_BY = {}; MOD_DEFS.forEach(m => MOD_BY[m.id] = m);
+MODS = { earned:[], free:[], drops:[], drone:null, offerWave:-1, rigRef:null, sig:'', nt:0 };
+try { const s = JSON.parse(localStorage.getItem('sw_mods') || '[]'); if (Array.isArray(s)) MODS.free = s.filter(id => MOD_BY[id]); } catch (e) {}
+const modSave = () => { try { localStorage.setItem('sw_mods', JSON.stringify(MODS.free)); } catch (e) {} };
+const modList = () => (G.mode === 'combat' ? MODS.earned : MODS.free);
+const modOn = id => !!MODS && modList().includes(id);
+function modK(kind) { if (!MODS) return 1; let k = 1; for (const id of modList()) { const d = MOD_BY[id]; if (d && d.k && d.k[kind]) k *= d.k[kind]; } return k; }
+function modHudLabel() { if (!MODS) return 'Add-ons'; const n = modList().length; return n ? `Add-ons · ${n} fitted` : 'Add-ons'; }
+
+/* ---------- the supply drone ---------- */
+function buildSupplyDrone() {
+  const g = new THREE.Group();
+  const shell = new THREE.MeshStandardMaterial({ color:0xd9dde2, metalness:.6, roughness:.35 });
+  const dark = new THREE.MeshStandardMaterial({ color:0x24282e, metalness:.7, roughness:.4 });
+  const glow = new THREE.MeshBasicMaterial({ color:AS().glow });
+  const add = (geo, m, x, y, z) => { const o = new THREE.Mesh(geo, m); o.position.set(x, y, z); g.add(o); return o; };
+  add(new THREE.BoxGeometry(1.4, .36, 1.4), shell, 0, 0, 0);
+  add(new THREE.BoxGeometry(.9, .14, .9), dark, 0, .25, 0);
+  const rotors = [];
+  for (const [x, z] of [[-1.1, -1.1], [1.1, -1.1], [-1.1, 1.1], [1.1, 1.1]]) {
+    const arm = add(new THREE.BoxGeometry(.12, .1, 1.1), dark, x * .5, .05, z * .5); arm.lookAt(x, .05, z);
+    add(new THREE.CylinderGeometry(.16, .16, .22, 10), dark, x, .1, z);
+    const r = add(new THREE.CylinderGeometry(.62, .62, .02, 18), new THREE.MeshBasicMaterial({ color:0x9aa4ae, transparent:true, opacity:.35, depthWrite:false }), x, .24, z);
+    rotors.push(r);
+  }
+  const crate = new THREE.Group(); crate.position.y = -.62; g.add(crate);
+  const cm = new THREE.MeshStandardMaterial({ color:0x3a4048, metalness:.5, roughness:.5 });
+  const cb = new THREE.Mesh(new THREE.BoxGeometry(1.05, .7, 1.05), cm); crate.add(cb);
+  for (const s of [-1, 1]) { const st = new THREE.Mesh(new THREE.BoxGeometry(1.08, .08, .08), glow); st.position.set(0, .12 * s, .53); crate.add(st); }
+  const beacon = add(new THREE.SphereGeometry(.09, 8, 6), new THREE.MeshBasicMaterial({ color:0xff3a2a }), 0, .4, 0);
+  const lamp = new THREE.PointLight(AS().glow, 0, 14); lamp.position.y = -1; g.add(lamp);
+  g.traverse(o => { o.castShadow = false; o.receiveShadow = false; });
+  g.userData = { rotors, crate, beacon, lamp, glow };
+  return g;
+}
+const mdV = new V3(), mdV2 = new V3();
+function modTarget(out) {
+  out.copy(P.pos); out.y += P.heavy ? 6.8 : 4.2;
+  return out;
+}
+function launchDrone() {
+  const job = MODS.drops[0]; if (!job || MODS.drone) return;
+  const g = buildSupplyDrone();
+  camera.getWorldDirection(mdV); mdV.y = 0; if (mdV.lengthSq() < .01) mdV.set(0, 0, -1); mdV.normalize();
+  mdV2.set(-mdV.z, 0, mdV.x).multiplyScalar(Math.random() < .5 ? -1 : 1);
+  g.position.copy(P.pos).addScaledVector(mdV, 50).addScaledVector(mdV2, 90); g.position.y = P.pos.y + 95;
+  scene.add(g);
+  MODS.drone = { g, job, state:'in', t:0, vel:new V3() };
+  sfx.whoosh && sfx.whoosh();
+}
+function droneArrive(d) {
+  const job = d.job;
+  if (job.kind === 'part') {
+    if (!P.heavy || !P.hrig || P.hrig !== job.rig) { say('Lost the shell before the drop. Parts going back to the bay.', { prio:true }); return; }
+    const z = job.zone, rig = P.hrig;
+    if (P.hArmor[z] !== undefined) P.hArmor[z] = true;
+    P.hz[z] = 100;
+    let i = 0;
+    for (const p of rig.pieces) {
+      if (p.zone !== z) continue;
+      cancelTweensFor(p);
+      tweenPiece(p, { pos:p.fp.clone().add(mdV.set(rand(-.6, .6), 2.6 + rand(0, .8), rand(-.6, .6))), scale:.35, spin:rand(2, 4) }, .05 * i++, .55, { onDone:pp => { pp.g.getWorldPosition(mdV2); burst(mdV2, AS().glow, 6, 6, .25, false); } });
+    }
+    tintZone(rig, z, 1);
+    P.heavyHp = Math.min(HEAVY.hp, P.heavyHp + HEAVY.hp * .15);
+    sfx.lock && sfx.lock();
+    say(`${PART_NAME[z]} bolted on. GOLIATH is whole again on that side.`, { prio:true });
+    updateHudStatic();
+  } else if (job.kind === 'mod') {
+    const list = job.list || modList();
+    if (!list.includes(job.id)) list.push(job.id);
+    if (list === MODS.free) modSave();
+    modApply(true);
+    say(`${MOD_BY[job.id].name} fitted. ${MOD_BY[job.id].sub}.`, { prio:true });
+  }
+}
+function cancelTweensFor(p) { for (let i = tweens.length - 1; i >= 0; i--) if (tweens[i].p === p) { tweens.splice(i, 1); p.tw = null; } }
+const PART_NAME = { armL:'Left cannon arm', armR:'Right cannon arm', legL:'Left leg', legR:'Right leg', helmet:'Hood', chest:'Hex core plating', abdomen:'Waist armor', back:'Exhaust stack' };
+function modPartLost(z) {
+  if (MODS.drops.some(j => j.kind === 'part' && j.zone === z)) return;
+  MODS.drops.push({ kind:'part', zone:z, rig:P.hrig, wait:4 });
+  say(`${PART_NAME[z]} is gone. I am printing a replacement, drone inbound in a few seconds.`, { key:'partlost' + z, cd:3 });
+}
+function droneTick(dt) {
+  // queued drops wait a moment before the drone launches
+  if (!MODS.drone && MODS.drops.length) {
+    const j = MODS.drops[0];
+    if (j.kind === 'part' && (!P.heavy || P.hrig !== j.rig)) { MODS.drops.shift(); }
+    else { j.wait -= dt; if (j.wait <= 0 && G.state === 'play') launchDrone(); }
+  }
+  const d = MODS.drone; if (!d) return;
+  d.t += dt;
+  const g = d.g, u = g.userData;
+  for (const r of u.rotors) r.rotation.y += dt * 40;
+  u.beacon.visible = (G.time * 3 % 1) < .5;
+  if (d.state === 'in') {
+    modTarget(mdV); mdV2.copy(mdV).sub(g.position);
+    const dist = mdV2.length(), sp = Math.min(85, 6 + dist * 1.6);
+    mdV2.normalize().multiplyScalar(sp); d.vel.lerp(mdV2, Math.min(1, 4 * dt));
+    g.position.addScaledVector(d.vel, dt);
+    g.rotation.z = -d.vel.x * .006; g.rotation.x = d.vel.z * .006;
+    const job = d.job;
+    if (job.kind === 'part' && (!P.heavy || P.hrig !== job.rig)) { d.state = 'out'; d.t = 0; MODS.drops.shift(); }
+    else if (dist < 2.2 || d.t > 12) {
+      d.state = 'drop'; d.t = 0; MODS.drops.shift();
+      droneArrive(d);
+      u.lamp.intensity = 3;
+    }
+  } else if (d.state === 'drop') {
+    modTarget(mdV); g.position.lerp(mdV, Math.min(1, 6 * dt));
+    u.crate.position.y = -.62 - Math.sin(Math.min(1, d.t / .6) * Math.PI) * .5;
+    if (Math.random() < .7) { mdV.copy(g.position); mdV.y -= 1; emit(PS, mdV, rand(-2, 2), rand(-6, -2), rand(-2, 2), AS().glow, .35); }
+    if (d.t > 1.4) { d.state = 'out'; d.t = 0; u.lamp.intensity = 0; say(['Drone heading home.', 'Drone clear.', 'Back to the bay.'][(Math.random() * 3) | 0], { key:'droneout', cd:20 }); }
+  } else {
+    d.vel.y += 30 * dt; d.vel.x *= .98; d.vel.z *= .98;
+    g.position.addScaledVector(d.vel, dt); g.rotation.x = Math.max(-.4, g.rotation.x - dt);
+    if (d.t > 4) {
+      scene.remove(g); g.traverse(o => { if (o.geometry) o.geometry.dispose(); });
+      MODS.drone = null;
+    }
+  }
+}
+
+/* ---------- add-on visuals on the suit ---------- */
+function modVisuals(rig) {
+  if (!rig || !rig.pieces) return;
+  for (const p of rig.pieces) { const old = p.g.getObjectByName('modVis'); if (old) p.g.remove(old); }
+  const glow = new THREE.MeshBasicMaterial({ color:rig.suit && rig.suit.glow !== undefined ? rig.suit.glow : AS().glow });
+  const dark = new THREE.MeshStandardMaterial({ color:0x2a2e34, metalness:.8, roughness:.35 });
+  const gold = new THREE.MeshStandardMaterial({ color:0xb89a52, metalness:.9, roughness:.3 });
+  const pieceOf = (zone, pick) => { const ps = rig.pieces.filter(p => p.zone === zone); return ps.length ? ps[pick === 'last' ? ps.length - 1 : 0] : null; };
+  const at = (zone, build, pick) => { const p = pieceOf(zone, pick); if (!p) return; const g = new THREE.Group(); g.name = 'modVis'; build(g); g.traverse(o => { o.castShadow = false; }); p.g.add(g); };
+  const m = (geo, mat, x, y, z, g, rx = 0, ry = 0, rz = 0) => { const o = new THREE.Mesh(geo, mat); o.position.set(x, y, z); o.rotation.set(rx, ry, rz); g.add(o); return o; };
+  const L = modList(), s = rig.heavy ? 1.6 : 1;
+  if (L.includes('plating')) at('chest', g => { for (const sx of [-1, 1]) m(new THREE.BoxGeometry(.2 * s, .26 * s, .04 * s), gold, sx * .15 * s, .02 * s, -.27 * s, g, -.15, sx * .25, 0); });
+  if (L.includes('thrusters')) at('back', g => { for (const sx of [-1, 1]) { m(new THREE.CylinderGeometry(.06 * s, .085 * s, .24 * s, 10), dark, sx * .2 * s, -.12 * s, .26 * s, g); m(new THREE.CircleGeometry(.055 * s, 10), glow, sx * .2 * s, -.245 * s, .26 * s, g, Math.PI / 2); } });
+  if (L.includes('repulsors')) for (const z of ['armR', 'armL']) at(z, g => { m(new THREE.TorusGeometry(.07 * s, .018 * s, 6, 14), glow, 0, -.05 * s, -.12 * s, g); }, 'last');
+  if (L.includes('cells')) at('abdomen', g => { for (let i = -1; i <= 1; i++) m(new THREE.BoxGeometry(.06 * s, .1 * s, .03 * s), glow, i * .09 * s, 0, -.22 * s, g); });
+  if (L.includes('nanites')) at('chest', g => { m(new THREE.TorusGeometry(.11 * s, .012 * s, 6, 20), glow, 0, .06 * s, -.29 * s, g); });
+  if (L.includes('rack')) at('armL', g => { m(new THREE.BoxGeometry(.12 * s, .1 * s, .26 * s), dark, -.13 * s, .05 * s, 0, g); for (const dy of [-.025, .025]) m(new THREE.CircleGeometry(.02 * s, 8), glow, -.13 * s, (.05 + dy) * s, -.131 * s, g, Math.PI); }, 'last');
+  if (L.includes('sinks')) at('back', g => { for (let i = 0; i < 4; i++) m(new THREE.BoxGeometry(.3 * s, .015 * s, .07 * s), dark, 0, (.16 - i * .05) * s, .27 * s, g); });
+}
+function modApply(force) {
+  const sig = (G.mode === 'combat' ? 'c:' : 'f:') + modList().join(',');
+  if (P.ammo) { const base = SUITS[G.suitSel].missiles * 3, want = base ? base + (modOn('rack') ? 4 : 0) : 0; if (P.ammo.mslMax !== want) { P.ammo.mslMax = want; P.ammo.msl = Math.min(P.ammo.msl, want); } }
+  if (!force && sig === MODS.sig && P.rig === MODS.rigRef && P.hrig === MODS.hrigRef) return;
+  MODS.sig = sig; MODS.rigRef = P.rig; MODS.hrigRef = P.hrig;
+  modVisuals(P.rig); if (P.hrig) modVisuals(P.hrig);
+  updateHudStatic();
+}
+function modTick(dt) {
+  if (!MODS) return;
+  droneTick(dt);
+  if (G.state !== 'play') return;
+  MODS.nt -= dt; if (MODS.nt <= 0) { MODS.nt = .5; modApply(false); }
+  const L = modList(); if (!L.length) return;
+  const suited = P.mode === 'suited' || P.heavy;
+  if (L.includes('cells') && suited) P.energy = Math.min(100, P.energy + 12 * dt);
+  if (L.includes('sinks') && P.heat > 0) P.heat = Math.max(0, P.heat - 14 * dt);
+  if (L.includes('nanites') && suited && G.time - (P.lastHit || -99) > 3) {
+    if (P.heavy) P.heavyHp = Math.min(HEAVY.hp, P.heavyHp + HEAVY.hp * .012 * dt);
+    else suitHp = Math.min(SUIT().hp, suitHp + SUIT().hp * .015 * dt);
+  }
+  if (L.includes('rack') && P.ammo && P.ammo.msl < P.ammo.mslMax) P.ammo.mslT = (P.ammo.mslT || 0) + dt * .5;
+}
+
+/* ---------- earning in combat, workshop in free roam ---------- */
+function modOffer() {
+  if (G.mode !== 'combat' || MODS.offerWave === G.wave) return;
+  MODS.offerWave = G.wave;
+  const pool = MOD_DEFS.filter(d => !MODS.earned.includes(d.id)).sort(() => Math.random() - .5).slice(0, 3);
+  if (!pool.length) { G.score += 500; say(`Wave ${G.wave} down. Every add-on is already fitted, so take the bonus.`, { prio:true }); return; }
+  say(`Wave ${G.wave} down. I have parts for an upgrade. Pick one.`, { prio:true });
+  openMods(pool);
+}
+{
+  const el = document.createElement('div'); el.id = 'mpanel'; el.className = 'screen center'; el.hidden = true;
+  el.innerHTML = `<div class="card chamfer" style="width:min(640px,100%);text-align:left"><div class="row"><h2 style="font-size:22px" id="mpTitle">SUIT ADD-ONS</h2><button class="ghost" id="mpClose" type="button">Close · 8</button></div>
+    <p class="hint" style="margin:0" id="mpHint"></p><div class="modes" id="mpList"></div></div>`;
+  $('app').appendChild(el);
+}
+function openMods(offer) {
+  if (G.state !== 'play') return;
+  G.state = 'paused'; exitLock();
+  const ai = AI.name;
+  MODS.offer = offer || null;
+  const L = modList();
+  if (offer) {
+    $('mpTitle').textContent = 'UPGRADE · WAVE ' + G.wave;
+    $('mpHint').textContent = `${ai} can fabricate one of these. The drone will fit it before the next wave. You earn a pick every five waves.`;
+    $('mpList').innerHTML = offer.map((d, i) => `<button class="opt" data-mod="${d.id}"><strong>${i + 1} · ${d.name}</strong><span>${d.sub}</span></button>`).join('');
+  } else if (G.mode === 'combat') {
+    $('mpTitle').textContent = 'SUIT ADD-ONS';
+    $('mpHint').textContent = `In combat you earn a new add-on every five waves. ${L.length ? 'Fitted now:' : 'Nothing fitted yet.'}`;
+    $('mpList').innerHTML = MOD_DEFS.map(d => `<div class="opt" style="opacity:${L.includes(d.id) ? 1 : .4}"><strong>${L.includes(d.id) ? '✓ ' : ''}${d.name}</strong><span>${d.sub}</span></div>`).join('');
+  } else {
+    $('mpTitle').textContent = 'ADD-ON WORKSHOP';
+    $('mpHint').textContent = `Free roam: everything is free. Tap to fit or remove. ${ai} sends a drone with each new part. Fits every suit, GOLIATH included.`;
+    $('mpList').innerHTML = MOD_DEFS.map(d => `<button class="opt" data-mod="${d.id}" aria-pressed="${L.includes(d.id)}"><strong>${L.includes(d.id) ? '✓ ' : '+ '}${d.name}</strong><span>${d.sub}${L.includes(d.id) ? ' · fitted, tap to remove' : ''}</span></button>`).join('')
+      + `<button class="opt" data-mod="__all"><strong>Fit everything</strong><span>One drone run with the full kit</span></button>`;
+  }
+  showScreen('mpanel'); $('hud').hidden = false;
+}
+function modPick(id) {
+  if (MODS.offer) {
+    MODS.offer = null; resume();
+    MODS.drops.push({ kind:'mod', id, list:MODS.earned, wait:.6 });
+    G.betweenT = Math.max(G.betweenT, 6);
+    say(`${MOD_BY[id].name} it is. Drone on its way.`, { prio:true });
+    return;
+  }
+  if (G.mode === 'combat') return;
+  if (id === '__all') {
+    const add = MOD_DEFS.map(d => d.id).filter(x => !MODS.free.includes(x));
+    resume();
+    if (!add.length) { say('Already carrying the full kit.', { prio:true }); return; }
+    for (const x of add.slice(0, -1)) MODS.free.push(x);
+    MODS.drops.push({ kind:'mod', id:add[add.length - 1], list:MODS.free, wait:.4 });
+    say('Full kit coming up. Drone on its way.', { prio:true });
+    return;
+  }
+  const i = MODS.free.indexOf(id);
+  if (i >= 0) { MODS.free.splice(i, 1); modSave(); modApply(true); openModsRefresh(); say(`${MOD_BY[id].name} removed.`, { key:'modrm', cd:1 }); return; }
+  if (MODS.drops.some(j => j.kind === 'mod' && j.id === id)) return;
+  MODS.drops.push({ kind:'mod', id, list:MODS.free, wait:.4 });
+  resume();
+  say(`${MOD_BY[id].name} coming up. Drone on its way.`, { prio:true });
+}
+function openModsRefresh() { G.state = 'play'; openMods(null); }
+$('mpanel').addEventListener('click', e => {
+  if (e.target.closest('#mpClose') || e.target === $('mpanel')) {
+    if (MODS.offer) { modPick(MODS.offer[0].id); return; }   // closing an offer still gives you the first pick
+    resume(); return;
+  }
+  const b = e.target.closest('button[data-mod]'); if (b) modPick(b.dataset.mod);
+});
+window.addEventListener('keydown', e => {
+  if (!$('mpanel').hidden) {
+    if (MODS.offer && /^Digit[1-3]$/.test(e.code)) { const d = MODS.offer[+e.code.slice(5) - 1]; e.preventDefault(); e.stopImmediatePropagation(); if (d) modPick(d.id); return; }
+    if (e.code === 'Escape' || e.code === 'Digit8') { e.preventDefault(); e.stopImmediatePropagation(); if (MODS.offer) modPick(MODS.offer[0].id); else resume(); }
+    return;
+  }
+  if (G.chatOpen || G.state !== 'play' || e.repeat) return;
+  if (e.code === 'Digit8' && !(e.target && e.target.tagName === 'INPUT')) { e.preventDefault(); e.stopImmediatePropagation(); openMods(null); }
+}, true);
+$('pauseMods') && $('pauseMods').addEventListener('click', () => { resume(); openMods(null); });
+
 let last = performance.now(), blinkT = 0;
 {
   const keep = new Set([...blobs, muzzleLight, ATM.pts, sky, hemi, sun, sun.target, amb, camera, shieldGrp, sonicRing, playerLight, chute, searchLight, searchLight.target, P.rig && P.rig.root, ...flashLights, ...beams.map(b => b.g), PS.pts, PB.pts]);
@@ -10830,7 +11091,7 @@ function step(rdt) {
   if (P.rig) syncPilotBody(P.rig, P.armor, P.camo);
   adminTick();
   updateEarthPlus(rdt);
-  updateFeatures(rdt); photoTick(); updateGfx(rdt); netTick(rdt); animTick(rdt); rescueTick(rdt); updateGfx2(); solTick(rdt); heavyTick(rdt);
+  updateFeatures(rdt); photoTick(); updateGfx(rdt); netTick(rdt); animTick(rdt); rescueTick(rdt); updateGfx2(); solTick(rdt); heavyTick(rdt); modTick(rdt);
 }
 function loop(now) {
   requestAnimationFrame(loop);
@@ -10846,7 +11107,7 @@ window.__SW_updateGadgets = updateGadgets; window.__SW_inside = (p) => insideBui
 $('pauseStar').addEventListener('click', () => { resume(); openStarMap(); });
 $('pauseRace').addEventListener('click', () => { resume(); openRaces(); });
 $('pausePhoto').addEventListener('click', () => { resume(); enterPhoto(); });
-window.__SW = { HV, heavySlam, rocketFist, buildHeavyRig, SOL, solArrive, enterSol, solBody, updateGfx2, GFX2, composer, bloomPass, WP, earthBiome, RES, startRescue, catchSuit, eject, AR, punch, AN, SHOT, startShot, animHit, slowMo, heroLanding, superLaunch, NET, netHost, netJoin, netLeave, openOnline, netSetMode, netHostRace, netChat, GFX, updateGfx, rebuildGrass, toggleSentry, RACES, RACE, startRace, stopRace, WX, setWeather, PH, enterPhoto, exitPhoto, PX, planetExtras, canWarp, sky, updateEnv, updateEarthPlus, earthGround, earthH, earthWater, earthPlaces, adminTeleport, adminWarp, openAdminPanel, SITES, adminCommand, enableAdmin, disableAdmin, startStall, hurtPlayer, damageEnemy, bullets, PILOTS, BOT, spawnBot, removeBot, clearBots, updateBots, botHurt, hitList, syncPilotBody, BUILDS, frameBuild, buildRig, fullArmor, refreshArmor, rimRig, renderer, scene, camera, GradeShader, ATM, trails, popups, barrelRoll, airBrake, coreBurst, spawnFaller, vortices, trackVortex, WORLDS, setWorld, startWarp, openStarMap, worldGround, getWorld:() => WORLD_ID, PERF, sonicPulse, sonarPing, grabCar, throwHeld, repairSpray, carsNear, punchCars, colliders, hotCars, ventCoolant, startStall, crashRagdoll, damageBuilding, collapsing, startMontage, cracks, addCrack, isWater, cycleSuit, openCheat, closeCheat, openPanel, closePanel, unlockOP, frameAbility, superLaunch, tryGrab, cars, pillars, damagePillar, damageCar, swarmDrones, explode, hurtPlayer, callHeavy, punch, frameZones:() => frameZones, G, P, W, SUITS, step, launch, startMode, suitUp, callSuit, eject, toggleSentry, selfDestruct, toggleHelmet, toggleFace, detachPart, reassemble, selectSuit, runCommand, fireHand, fireMissiles, fireLasers, fireMinigun, dropFlares, spawnEnemy, enemies, eMissiles, keys, beginMission, setCam, BAY, PAD, toggleSupersonic, get suitHp() { return suitHp; } };
+window.__SW = { MODS, MOD_DEFS, modPartLost, modOffer, openMods, modPick, modK, HV, heavySlam, rocketFist, buildHeavyRig, SOL, solArrive, enterSol, solBody, updateGfx2, GFX2, composer, bloomPass, WP, earthBiome, RES, startRescue, catchSuit, eject, AR, punch, AN, SHOT, startShot, animHit, slowMo, heroLanding, superLaunch, NET, netHost, netJoin, netLeave, openOnline, netSetMode, netHostRace, netChat, GFX, updateGfx, rebuildGrass, toggleSentry, RACES, RACE, startRace, stopRace, WX, setWeather, PH, enterPhoto, exitPhoto, PX, planetExtras, canWarp, sky, updateEnv, updateEarthPlus, earthGround, earthH, earthWater, earthPlaces, adminTeleport, adminWarp, openAdminPanel, SITES, adminCommand, enableAdmin, disableAdmin, startStall, hurtPlayer, damageEnemy, bullets, PILOTS, BOT, spawnBot, removeBot, clearBots, updateBots, botHurt, hitList, syncPilotBody, BUILDS, frameBuild, buildRig, fullArmor, refreshArmor, rimRig, renderer, scene, camera, GradeShader, ATM, trails, popups, barrelRoll, airBrake, coreBurst, spawnFaller, vortices, trackVortex, WORLDS, setWorld, startWarp, openStarMap, worldGround, getWorld:() => WORLD_ID, PERF, sonicPulse, sonarPing, grabCar, throwHeld, repairSpray, carsNear, punchCars, colliders, hotCars, ventCoolant, startStall, crashRagdoll, damageBuilding, collapsing, startMontage, cracks, addCrack, isWater, cycleSuit, openCheat, closeCheat, openPanel, closePanel, unlockOP, frameAbility, superLaunch, tryGrab, cars, pillars, damagePillar, damageCar, swarmDrones, explode, hurtPlayer, callHeavy, punch, frameZones:() => frameZones, G, P, W, SUITS, step, launch, startMode, suitUp, callSuit, eject, toggleSentry, selfDestruct, toggleHelmet, toggleFace, detachPart, reassemble, selectSuit, runCommand, fireHand, fireMissiles, fireLasers, fireMinigun, dropFlares, spawnEnemy, enemies, eMissiles, keys, beginMission, setCam, BAY, PAD, toggleSupersonic, get suitHp() { return suitHp; } };
 })();
 </script>
 </body>
