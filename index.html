@@ -8708,7 +8708,7 @@ function updatePlanetExtras(dt) {
   }
 }
 // shooting stars on clear Earth nights
-const SHOOT = { t:rand(4, 10), line:null, life:0, v:new V3() };
+const SHOOT = { t:rand(4, 10), line:null, life:0, v:new V3(), p0:new V3(0, 22000, 0) };
 {
   SHOOT.line = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new V3(), new V3()]), new THREE.LineBasicMaterial({ color:0xffffff, transparent:true, opacity:0, fog:false, depthWrite:false }));
   SHOOT.line.frustumCulled = false; SHOOT.line.renderOrder = -.4; sky.add(SHOOT.line);
@@ -8717,7 +8717,7 @@ function updateShootingStars(dt) {
   SHOOT.t -= dt; SHOOT.life -= dt;
   const ok = WORLD_ID === 'earth' && !ENV.day && WX.k < .1 && !UW.on;
   if (ok && SHOOT.t <= 0) { SHOOT.t = rand(5, 14); SHOOT.life = .9; const a = Math.random() * Math.PI * 2, el = rand(.35, .9); SHOOT.p0 = new V3(Math.cos(el) * Math.cos(a), Math.sin(el), Math.cos(el) * Math.sin(a)).multiplyScalar(22000); SHOOT.v.set(rand(-1, 1), -rand(.3, .6), rand(-1, 1)).normalize().multiplyScalar(9000); }
-  const vis = ok && SHOOT.life > 0; SHOOT.line.visible = vis;
+  const vis = ok && SHOOT.life > 0 && !!SHOOT.p0; SHOOT.line.visible = vis;
   if (vis) { const k = 1 - SHOOT.life / .9, p = SHOOT.line.geometry.attributes.position; const a = SHOOT.p0.clone().addScaledVector(SHOOT.v, k), b = a.clone().addScaledVector(SHOOT.v, -.12); p.setXYZ(0, a.x, a.y, a.z); p.setXYZ(1, b.x, b.y, b.z); p.needsUpdate = true; SHOOT.line.material.opacity = Math.sin(k * Math.PI); }
 }
 function updateFeatures(dt) {
@@ -11095,7 +11095,7 @@ function step(rdt) {
 }
 function loop(now) {
   requestAnimationFrame(loop);
-  const dt = Math.min(.05, (now - last) / 1000); last = now;
+  const dt = Math.max(0, Math.min(.05, (now - last) / 1000)); last = Math.max(last, now);
   perfTick(Math.min(500, now - (loop.prev || now)), dt); loop.prev = now;
   step(dt);
   updateGrade(dt);
