@@ -391,7 +391,7 @@ details summary{cursor:pointer;color:var(--cyan);font-size:12px;letter-spacing:.
       <div class="cta">
         <button class="go chamfer" id="launch">LAUNCH</button>
         <button class="ghost" id="menuOnline" type="button">PLAY ONLINE · with friends</button>
-        <span class="label" id="buildTag" style="opacity:.7">Build 11 Oct 2026 · ON-DEVICE AI</span>
+        <span class="label" id="buildTag" style="opacity:.7">Build 11 Oct 2026 · TALK ON 0</span>
         <button class="ghost" id="creditsBtn">About &amp; credits</button>
         <button class="ghost" id="menuCheat">Controls</button>
         <button class="ghost touch-only" id="menuPanel">Control panel</button>
@@ -6452,7 +6452,7 @@ const SCREENS = ['menu', 'pause', 'dead', 'win', 'lab', 'credits', 'cheat', 'cpa
 const KEYMAP = [
   ['Move', [['W A S D', 'Walk or fly'], ['Mouse', 'Look and aim (click to capture)'], ['Space / C', 'Jump or climb / descend'], ['Shift', 'Run or boost'], ['Shift + Space', 'Ground launch (suited, on the ground)'], ['Z (hold)', 'Hover lock'], ['A A / D D', 'Double-tap: barrel roll (dodges missiles)'], ['S S', 'Double-tap at speed: air brake shockwave'], ['X', 'Supersonic mode · vents coolant when the thrusters overheat'], ['Arrows', 'Look without a mouse']]],
   ['Weapons', [['Left click', 'Right-hand blaster'], ['Right click', 'Left-hand blaster'], ['E (hold)', 'Chest beam / nano-beams'], ['Shift + E', 'Core burst: costs half your power, clears a cone'], ['Q', 'Micro-missiles'], ['T', 'Smart lasers'], ['R (hold)', 'Minigun'], ['F (hold)', 'Shield'], ['V', 'Flares'], ['M', 'Tap: punch · hold: grab and throw']]],
-  ['Suit', [['G', 'Suit up, or frame ability when suited (blades, swarm, morph, camo, overcharge, cutter, slow-mo, phase, claws, sonic, sonar, lift, repair)'], ['B', 'Call the suit to you'], ['J', 'Eject / climb out of GOLIATH'], ['K', 'Sentry mode'], ['U', 'Drop the GOLIATH heavy shell'], ['H', 'Helmet on / off'], ['Y', 'Faceplate open / close'], ['[ / ]', 'Previous / next frame'], ['Tab', 'Frame lab (pick any frame)']]],
+  ['Suit', [['G', 'Suit up, or frame ability when suited (blades, swarm, morph, camo, overcharge, cutter, slow-mo, phase, claws, sonic, sonar, lift, repair)'], ['B', 'Call the suit to you'], ['0 (hold)', 'Voice chat with ORIN / VELA'], ['8', 'Suit add-ons'], ['9', 'Orbital lance (add-on)'], ['J', 'Eject / climb out of GOLIATH'], ['K', 'Sentry mode'], ['U', 'Drop the GOLIATH heavy shell'], ['H', 'Helmet on / off'], ['Y', 'Faceplate open / close'], ['[ / ]', 'Previous / next frame'], ['Tab', 'Frame lab (pick any frame)']]],
   ['View & world', [['4', 'Star map: warp to other planets (free roam, suited, from anywhere)'], ['5', 'Sky Races: time trials across Earth'], ['6', 'Weather: clear / rain / storm / auto'], ['F', 'Photo mode: free camera, save a picture'], ['1 / 2', 'Third person / helmet view'], ['L', 'Scan for hostiles'], ['N', 'Day / night'], ['3', 'Graphics: auto / high / low']]],
   ['AI pilots', [['Blue name', 'Friendly pilot. Fly past and it tags along on your wing'], ['Red name ⚔', 'Hostile pilot (1 in 4 chases, plus hunters). It shoots: boost or go supersonic to lose it'], ['Shoot one', 'Friendlies turn hostile. Down one for +300'], ['Hunters', 'Up to 3 always-hostile pilots come for you while suited. They make attack runs, then break and swing back'], ['Type: pilots off / on / 0-12 · hunters 0-8', 'Change how many share the sky']]],
   ['System', [['Enter or /', 'Command chat (type help)'], ['F1 or ?', 'This controls sheet'], ['`', 'Control panel'], ['O', 'Sound on / off'], ['I', 'Spoken lines on / off'], ['P / Esc', 'Pause']]]
@@ -11294,7 +11294,7 @@ function pickBritish(vs) {
   cap.style.cssText = 'position:fixed;left:50%;bottom:118px;transform:translateX(-50%);max-width:min(620px,86vw);padding:8px 14px;border-radius:10px;background:rgba(6,14,22,.72);border:1px solid rgba(127,233,255,.35);color:#dff8ff;font:500 14px/1.35 Oxanium,system-ui,sans-serif;pointer-events:none;opacity:0;transition:opacity .25s;z-index:30;text-align:center';
   ($("app") || document.body).appendChild(cap); AIV.cap = cap;
   const b = document.createElement('button'); b.id = 'micBtn'; b.type = 'button'; b.setAttribute('aria-label', 'Talk to the assistant');
-  b.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg><span>TALK · `</span>';
+  b.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg><span>TALK · 0</span>';
   b.style.cssText = 'position:fixed;left:16px;bottom:16px;z-index:31;display:flex;gap:6px;align-items:center;padding:8px 12px;border-radius:999px;border:1px solid rgba(127,233,255,.45);background:rgba(6,14,22,.65);color:#bff6ff;font:600 11px Oxanium,system-ui,sans-serif;letter-spacing:.08em;cursor:pointer';
   b.hidden = true; ($("app") || document.body).appendChild(b);
   const press = e => { e.preventDefault(); e.stopPropagation(); if (AIV.on) stopListen(); else startListen(); };
@@ -11320,7 +11320,7 @@ function startListen() {
   try { r.start(); } catch (e) { AIV.on = false; micState(); }
 }
 function stopListen() { if (AIV.rec && AIV.on) try { AIV.rec.stop(); } catch (e) {} }
-function micState() { const b = $('micBtn'); if (!b) return; b.style.background = AIV.on ? 'rgba(255,59,92,.75)' : 'rgba(6,14,22,.65)'; b.querySelector('span').textContent = AIV.on ? 'LISTENING' : 'TALK · `'; }
+function micState() { const b = $('micBtn'); if (!b) return; b.style.background = AIV.on ? 'rgba(255,59,92,.75)' : 'rgba(6,14,22,.65)'; b.querySelector('span').textContent = AIV.on ? 'LISTENING' : 'TALK · 0'; }
 function hearVoice(t) {
   if (AIV.backend === true) { chatLog('🎙 ' + t, true); aiChat(t); return; }
   runCommand((NET.on ? '/' : '') + t);
@@ -11384,13 +11384,13 @@ function localReply(t) {
   return aiPick([`I am afraid that one is beyond me for now. Try status, drones, weather, add-ons, or the name of a suit.`, `Not entirely sure what you mean. Say help and I will list what I can do.`, `Interesting thought. I have filed it under later. Anything I can actually do for you?`]);
 }
 (typeof setInterval === "function" ? setInterval : () => 0)(() => { if (capT > 0) { capT -= .25; if (capT <= 0 && AIV.cap) AIV.cap.style.opacity = 0; } const b = $('micBtn'); if (b) b.hidden = G.state !== 'play' || (typeof CINE !== 'undefined' && CINE.on); }, 250);
-// hold ` to talk; release to send
+// hold 0 to talk; release to send
 window.addEventListener('keydown', e => {
-  if (e.code !== 'Backquote' || e.repeat || G.chatOpen || G.state !== 'play') return;
+  if (e.code !== 'Digit0' || e.repeat || G.chatOpen || G.state !== 'play') return;
   if (e.target && e.target.tagName === 'INPUT') return;
   e.preventDefault(); e.stopImmediatePropagation(); startListen();
 }, true);
-window.addEventListener('keyup', e => { if (e.code === 'Backquote' && AIV.on) { e.preventDefault(); setTimeout(stopListen, 250); } }, true);
+window.addEventListener('keyup', e => { if (e.code === 'Digit0' && AIV.on) { e.preventDefault(); setTimeout(stopListen, 250); } }, true);
 for (const id of ['voiceBtn', 'voiceBtn2']) if ($(id)) { $(id).setAttribute('aria-pressed', voiceOn); $(id).textContent = 'Spoken lines: ' + (voiceOn ? 'on' : 'off'); }
 
 /* ================= On-device AI: a small language model that runs free in the browser on the GPU (WebLLM) ================= */
