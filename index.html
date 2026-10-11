@@ -391,7 +391,7 @@ details summary{cursor:pointer;color:var(--cyan);font-size:12px;letter-spacing:.
       <div class="cta">
         <button class="go chamfer" id="launch">LAUNCH</button>
         <button class="ghost" id="menuOnline" type="button">PLAY ONLINE · with friends</button>
-        <span class="label" id="buildTag" style="opacity:.7">Build 11 Oct 2026 · TALK ON 0</span>
+        <span class="label" id="buildTag" style="opacity:.7">Build 11 Oct 2026 · QUESTS</span>
         <button class="ghost" id="creditsBtn">About &amp; credits</button>
         <button class="ghost" id="menuCheat">Controls</button>
         <button class="ghost touch-only" id="menuPanel">Control panel</button>
@@ -459,6 +459,7 @@ details summary{cursor:pointer;color:var(--cyan);font-size:12px;letter-spacing:.
         <button class="ghost" id="pausePhoto">Photo mode</button>
         <button class="ghost" id="pauseOnline">Online play · 7</button>
         <button class="ghost" id="pauseMods">Suit add-ons · 8</button>
+        <button class="ghost" id="pauseQuests">Quests &amp; journal · −</button>
         <button class="ghost" id="toMenu">Main menu</button>
       </div>
       <div class="cta touch-only">
@@ -2967,7 +2968,7 @@ function reassemble() {
   say('Spare plates printed and fitted. Every section attached and the damage is patched.', { prio:true });
 }
 function selectSuit(i) {
-  if (SUITS[i] && SUITS[i].op && !G.opUnlocked) { say('That frame is locked.', { prio:true }); return; }
+  if (SUITS[i] && !suitOwned(i)) { say(lockMsg(i), { prio:true }); return; }
   if (P.heavy) heavyExit(false);
   resetAbilities();
   if (i === G.suitSel) return;
@@ -3428,6 +3429,7 @@ function frameAbility() {
   }
   else if (s.ability === 'camo') setCamo(!P.camo);
   else if (s.ability === 'nova') novaPulse();
+  else if (s.ability === 'shards') shardUse();
   else if (s.ability === 'overcharge') overcharge();
   else if (s.ability === 'cutter') { P.cutter = !P.cutter; tone('sawtooth', 200, 1200, .3, .05); say(P.cutter ? 'Plasma cutter armed. Hold E to cut. It eats through buildings.' : 'Cutter stowed. E is the chest beam again.', { key:'cutter', cd:1, prio:true }); }
   else if (s.ability === 'bullettime') bulletTime();
@@ -6164,7 +6166,7 @@ function drawHud() {
   if (helmetHud) { drawHelmetHud(col); drawHelmetLoadout(col); }
   if (G.cam === 'first' && P.mode === 'suited') drawVisorFx();
   hx.font = '10px "IBM Plex Mono", monospace'; hx.textAlign = 'center';
-  drawBots(); drawAdminTag(); drawSkyLabels(); drawRaceHud(); netDraw(); solDraw(); drawModHud();
+  drawBots(); drawAdminTag(); drawSkyLabels(); drawRaceHud(); netDraw(); solDraw(); drawModHud(); drawQuestHud();
   // enemies
   const range = G.sonar > 0 ? 1400 : G.scanT > 0 ? 650 : 280;
   for (const e of enemies) {
@@ -6447,12 +6449,12 @@ $('chatForm').addEventListener('submit', e => { e.preventDefault(); const v = $(
 $('chatIn').addEventListener('keydown', e => { if (e.key === 'Escape') { e.preventDefault(); closeChat(); } e.stopPropagation(); });
 
 /* ================= Screens & input ================= */
-const SCREENS = ['menu', 'pause', 'dead', 'win', 'lab', 'credits', 'cheat', 'cpanel', 'starmap', 'apanel', 'rpanel', 'npanel', 'mpanel'];
+const SCREENS = ['menu', 'pause', 'dead', 'win', 'lab', 'credits', 'cheat', 'cpanel', 'starmap', 'apanel', 'rpanel', 'npanel', 'mpanel', 'qpanel'];
 /* ---- controls cheat sheet ---- */
 const KEYMAP = [
   ['Move', [['W A S D', 'Walk or fly'], ['Mouse', 'Look and aim (click to capture)'], ['Space / C', 'Jump or climb / descend'], ['Shift', 'Run or boost'], ['Shift + Space', 'Ground launch (suited, on the ground)'], ['Z (hold)', 'Hover lock'], ['A A / D D', 'Double-tap: barrel roll (dodges missiles)'], ['S S', 'Double-tap at speed: air brake shockwave'], ['X', 'Supersonic mode · vents coolant when the thrusters overheat'], ['Arrows', 'Look without a mouse']]],
   ['Weapons', [['Left click', 'Right-hand blaster'], ['Right click', 'Left-hand blaster'], ['E (hold)', 'Chest beam / nano-beams'], ['Shift + E', 'Core burst: costs half your power, clears a cone'], ['Q', 'Micro-missiles'], ['T', 'Smart lasers'], ['R (hold)', 'Minigun'], ['F (hold)', 'Shield'], ['V', 'Flares'], ['M', 'Tap: punch · hold: grab and throw']]],
-  ['Suit', [['G', 'Suit up, or frame ability when suited (blades, swarm, morph, camo, overcharge, cutter, slow-mo, phase, claws, sonic, sonar, lift, repair)'], ['B', 'Call the suit to you'], ['0 (hold)', 'Voice chat with ORIN / VELA'], ['8', 'Suit add-ons'], ['9', 'Orbital lance (add-on)'], ['J', 'Eject / climb out of GOLIATH'], ['K', 'Sentry mode'], ['U', 'Drop the GOLIATH heavy shell'], ['H', 'Helmet on / off'], ['Y', 'Faceplate open / close'], ['[ / ]', 'Previous / next frame'], ['Tab', 'Frame lab (pick any frame)']]],
+  ['Suit', [['G', 'Suit up, or frame ability when suited (blades, swarm, morph, camo, overcharge, cutter, slow-mo, phase, claws, sonic, sonar, lift, repair)'], ['B', 'Call the suit to you'], ['− (minus)', 'Quest journal'], ['G near a person', 'Talk / take a quest'], ['0 (hold)', 'Voice chat with ORIN / VELA'], ['8', 'Suit add-ons'], ['9', 'Orbital lance (add-on)'], ['J', 'Eject / climb out of GOLIATH'], ['K', 'Sentry mode'], ['U', 'Drop the GOLIATH heavy shell'], ['H', 'Helmet on / off'], ['Y', 'Faceplate open / close'], ['[ / ]', 'Previous / next frame'], ['Tab', 'Frame lab (pick any frame)']]],
   ['View & world', [['4', 'Star map: warp to other planets (free roam, suited, from anywhere)'], ['5', 'Sky Races: time trials across Earth'], ['6', 'Weather: clear / rain / storm / auto'], ['F', 'Photo mode: free camera, save a picture'], ['1 / 2', 'Third person / helmet view'], ['L', 'Scan for hostiles'], ['N', 'Day / night'], ['3', 'Graphics: auto / high / low']]],
   ['AI pilots', [['Blue name', 'Friendly pilot. Fly past and it tags along on your wing'], ['Red name ⚔', 'Hostile pilot (1 in 4 chases, plus hunters). It shoots: boost or go supersonic to lose it'], ['Shoot one', 'Friendlies turn hostile. Down one for +300'], ['Hunters', 'Up to 3 always-hostile pilots come for you while suited. They make attack runs, then break and swing back'], ['Type: pilots off / on / 0-12 · hunters 0-8', 'Change how many share the sky']]],
   ['System', [['Enter or /', 'Command chat (type help)'], ['F1 or ?', 'This controls sheet'], ['`', 'Control panel'], ['O', 'Sound on / off'], ['I', 'Spoken lines on / off'], ['P / Esc', 'Pause']]]
@@ -6516,7 +6518,7 @@ $('cpanel').addEventListener('pointerdown', e => { if (e.target === $('cpanel'))
 $('cheat').addEventListener('pointerdown', e => { if (e.target === $('cheat')) closeCheat(); });
 try { if (localStorage.getItem('sw_op') === '1') G.opUnlocked = true; } catch (e) {}
 function cycleSuit(dir) {
-  const list = SUITS.map((x, i) => i).filter(i => !SUITS[i].op || G.opUnlocked);
+  const list = SUITS.map((x, i) => i).filter(i => suitOwned(i));
   const at = list.indexOf(G.suitSel);
   const next = list[(at + dir + list.length) % list.length];
   selectSuit(next);
@@ -6557,17 +6559,17 @@ function setSound(on) {
   if (master) master.gain.value = on ? .45 : 0;
 }
 function renderSuitCards(el, inGame) {
-  el.innerHTML = SUITS.map((s, k) => (s.op && !G.opUnlocked) ? '' : `
+  el.innerHTML = SUITS.map((s, k) => (s.op && !suitOwned(k)) ? '' : `
     <button class="suit" data-suit="${k}" aria-pressed="${k === G.suitSel}" style="--sc:${s.css}">
       <div style="min-width:0"><div class="code">${s.code} · ${s.role}</div><strong>${s.name}</strong></div>
-      <span class="tag">${DEPLOY_LABEL[s.deploy]} · ${MAT_NAME[s.mat] || ''}</span>
+      <span class="tag">${suitOwned(k) ? DEPLOY_LABEL[s.deploy] + ' · ' + (MAT_NAME[s.mat] || '') : '🔒 Quest'}</span>
       ${['SPD', 'ARM', 'PWR'].map((l, j) => `<div class="stat"><span>${l}</span><span class="pips">${[0,1,2,3,4].map(p => `<i class="${p < s.stats[j] ? 'f' : ''}"></i>`).join('')}</span></div>`).join('')}
     </button>`).join('');
 }
 renderSuitCards($('suitCards'));
 $('suitCards').addEventListener('click', e => {
   const b = e.target.closest('.suit'); if (!b) return;
-  G.suitSel = +b.dataset.suit; suitHp = SUIT().hp;
+  { const _i = +b.dataset.suit; if (!suitOwned(_i)) { $('suitTip').textContent = lockMsg(_i); return; } G.suitSel = _i; } suitHp = SUIT().hp;
   [...$('suitCards').children].forEach(x => x.setAttribute('aria-pressed', x === b));
   $('suitTip').textContent = DEPLOY_LABEL[SUIT().deploy] + ' deploy';
   P.armor = fullArmor(true); setPlayerRig();
@@ -11460,6 +11462,18 @@ async function brainReply(raw) {
   if (want && brainSupported() && !navigator.webdriver) setTimeout(() => brainLoad(true), 15000);
 }
 
+/* ================= Quests: meet people around the map, earn frames, and the final shard-gauntlet frame SINGULARITY ================= */
+SUITS.push({ code:'SW-Ω', name:'SINGULARITY', role:'Shard gauntlet frame', op:true, quest:true, deploy:'nano', ability:'shards', primary:0x18191e, secondary:0xeceff4, accent:0x8a7cff, glow:0xe9ddff, css:'#e9ddff',
+  helm:'crest', chest:'diamond', shoulders:'pods', pack:'wings', bulk:1.08, speed:2.0, hp:2600, blaster:30, beam:'chest', beamPow:4, missiles:10, minigun:true, lasers:true, shield:3, o2:12, stats:[5,5,5],
+  line:'SINGULARITY sealed. Five shards in the gauntlet. G uses the active shard, Shift+G switches shards.' });
+const SING = SUITS.length - 1;
+var QS = { owned:[0], done:[], shards:[], active:null, near:-1, npcs:[], marks:[] };
+try { const s = JSON.parse(localStorage.getItem('sw_quests') || 'null'); if (s) { QS.owned = Array.isArray(s.owned) && s.owned.length ? s.owned : [0]; QS.done = s.done || []; QS.shards = s.shards || []; } } catch (e) {}
+var qSave = () => { try { localStorage.setItem('sw_quests', JSON.stringify({ owned:QS.owned, done:QS.done, shards:QS.shards })); } catch (e) {} };
+function isAdminQ() { return !!(typeof G !== 'undefined' && (G.admin || G.opUnlocked)); }
+function suitOwned(i) { return isAdminQ() || (typeof QS !== 'undefined' && !!QS && QS.owned.includes(i)); }
+var suitTier = i => i === 0 ? 0 : i === SING ? 6 : SUITS[i].op ? 5 : Math.min(4, 1 + Math.floor((i - 1) / 6));
+
 /* ================= Suit Library: a glass-domed rotunda beside the Cliffhouse with every frame on display ================= */
 const LIB = { c:new V3(), pods:[], root:null, next:0, buildT:0, near:-1, R:19, H:9, holo:null, ready:false };
 {
@@ -11547,7 +11561,7 @@ function libBuildOne() {
 }
 function libWear() {
   const p = LIB.pods[LIB.near]; if (!p) return;
-  if (p.s.op && !G.opUnlocked) { say(`${p.s.name} is sealed. That pod needs clearance I cannot give you.`, { key:'liblock', cd:4, prio:true }); return; }
+  if (!suitOwned(p.i)) { say(lockMsg(p.i), { key:'liblock', cd:4, prio:true }); return; }
   if (P.heavy) { say('Climb out of GOLIATH first. It will not fit through the door anyway.', { key:'libheavy', cd:5, prio:true }); return; }
   if (P.mode === 'suited' && G.suitSel === p.i) { say(`You are already wearing ${p.s.name}.`, { key:'libsame', cd:3 }); return; }
   if (P.mode === 'deploying' || P.caseObj) return;
@@ -11576,7 +11590,7 @@ function libTick(dt) {
   for (const p of LIB.pods) {
     const inUse = P.mode === 'suited' && G.suitSel === p.i && !P.heavy;
     if (p.rig) { p.rise = Math.min(1, p.rise + dt * .8); const e = 1 - Math.pow(1 - p.rise, 3); p.rig.root.position.y = .56 - 2.6 * (1 - e); p.rig.root.visible = !inUse && p.rise > .02; p.rig.root.rotation.y = Math.PI + Math.sin(G.time * .3 + p.i) * .08; }
-    p.lamp.material = inUse ? LIB.M.glowSoft : LIB.M.warm;
+    p.lamp.material = inUse ? LIB.M.glowSoft : suitOwned(p.i) ? LIB.M.warm : LIB.M.red;
   }
   // which pod are you standing at?
   let near = -1;
@@ -11585,7 +11599,7 @@ function libTick(dt) {
   }
   LIB.near = near;
   const pr = $('libPrompt');
-  if (near >= 0) { const s = SUITS[near]; pr.hidden = false; pr.style.borderColor = s.css; pr.textContent = (s.op && !G.opUnlocked) ? `${s.code} ${s.name} · sealed` : (P.mode === 'suited' && G.suitSel === near) ? `${s.name} · you are wearing it` : `${isTouch ? 'Tap' : 'G'} · Wear ${s.name}  (${s.code} · ${s.role})`; }
+  if (near >= 0) { const s = SUITS[near]; pr.hidden = false; pr.style.borderColor = s.css; pr.textContent = !suitOwned(near) ? `🔒 ${s.name} · earn it with a quest (press −)` : (P.mode === 'suited' && G.suitSel === near) ? `${s.name} · you are wearing it` : `${isTouch ? 'Tap' : 'G'} · Wear ${s.name}  (${s.code} · ${s.role})`; }
   else pr.hidden = true;
 }
 window.addEventListener('keydown', e => {
@@ -12104,6 +12118,337 @@ function detailTick(dt) {
   const night = !ENV.day; DM.win.emissiveIntensity = night ? 1.1 : 0; DM.glow.color.setHex(night ? 0xffc36a : 0xb8a080);
 }
 
+const TIER_NAME = ['Starter', 'Easy', 'Medium', 'Hard', 'Very hard', 'Elite', 'Legendary'];
+const tierNeed = t => [0, 0, 3, 7, 12, 17, 20][t];      // frames you must own before someone trusts you with this
+
+/* ---------- the people ---------- */
+const QNPC = [
+  { id:'marta', name:'Marta Quill', role:'Gantry engineer', at:() => new V3(BAY.x - 10, 0, BAY.z + 8), col:0x2f6f9a, hair:0x3a2416,
+    hello:'You are the new pilot? Good. Every frame in the library was built by someone who wants it used well. Prove you can fly and I will sign one over.', quests:[[1, 'rings'], [2, 'hunt'], [3, 'salvage']] },
+  { id:'dex', name:'Dex Okoro', role:'Race marshal, Portside Circuit', site:'circuit', off:[-60, 40], col:0xc0392b, hair:0x111111,
+    hello:'Speed is the only language this track speaks. Show me some and I will show you a frame.', quests:[[4, 'speed'], [5, 'rings'], [6, 'rings'], [13, 'speed']] },
+  { id:'ines', name:'Prof. Ines Vale', role:'Curator, Horizon Expo', site:'expo', off:[30, 60], col:0x6d4aa8, hair:0xb8b0a8,
+    hello:'Half the prototypes in that library came from my pavilions. Help me with a few errands and you can take one home.', quests:[[7, 'altitude'], [8, 'salvage'], [9, 'courier']] },
+  { id:'rook', name:'Old Rook', role:'Miner, Redrock village', site:'canyon', off:[8, 6], col:0x8a5a2a, hair:0x9a9a9a,
+    hello:'Drones keep raiding the mine. You clear them out, I will tell you where I hid a frame I found down the shaft.', quests:[[10, 'hunt'], [11, 'salvage'], [12, 'survive'], [19, 'hunt']] },
+  { id:'sana', name:'Dr. Sana Kirk', role:'Lead scientist, Polaris Station', site:'polaris', off:[40, -30], col:0xe0e6ec, hair:0x1a1a1a,
+    hello:'Cold up here, isn’t it. My instruments keep breaking and something keeps shooting at the dome. Help and I will pay in hardware.', quests:[[14, 'altitude'], [15, 'salvage'], [16, 'hunt'], [20, 'survive']] },
+  { id:'hale', name:'Captain Bram Hale', role:'Deepwater Rig', site:'rig', off:[20, 20], rig:true, col:0xe0a020, hair:0x5a3a20,
+    hello:'Welcome aboard. Rig work is dangerous and the pay is in suits. Interested?', quests:[[17, 'courier'], [18, 'hunt'], [21, 'survive']] },
+  { id:'lio', name:'Lio Marsh', role:'Islander, Coral Isles', site:'isles', off:[10, 30], col:0x2aa59a, hair:0x2a1a10,
+    hello:'Nobody flies out here unless they are looking for trouble or treasure. I can help with both.', quests:[[22, 'rings'], [23, 'courier'], [24, 'hunt']] },
+  { id:'ada', name:'Ada Wren', role:'Keeper of the Suit Library', at:() => new V3(LIB.c.x + 6, 0, LIB.c.z + LIB.R + 9), col:0x1d2b45, hair:0xc8a070,
+    hello:'Every frame in here has a story. The last one does not have a pilot yet. Earn the others and we will talk about it.', quests:[[25, 'survive'], [26, 'hunt'], ['shard:gravity', 'shard'], ['shard:tempo', 'shard'], ['shard:storm', 'shard'], ['shard:phase', 'shard'], ['shard:nova', 'shard'], [SING, 'final']] },
+];
+const SHARDS = {
+  gravity:{ name:'Gravity shard', col:0x9b6bff, hint:'on the highest peak of the north-western mountains' },
+  tempo:{ name:'Tempo shard', col:0x3ee0b0, hint:'in a ring course around the city spire' },
+  storm:{ name:'Storm shard', col:0x5aa8ff, hint:'at Polaris Station, in the middle of a storm' },
+  phase:{ name:'Phase shard', col:0xf2f6ff, hint:'on the floor of the ocean trench beside the Deepwater Rig' },
+  nova:{ name:'Nova shard', col:0xff8a3a, hint:'floating in low orbit straight above the city' },
+};
+const qid = q => typeof q[0] === 'string' ? q[0] : 'suit:' + q[0];
+function npcPos(n) { const s = n.at ? null : siteById(n.site), p = n.at ? n.at() : new V3(s.x + n.off[0], 0, s.z + n.off[1]); p.y = n.rig ? floorAt(p.x, p.z, 120) : Math.max(SEA, floorAt(p.x, p.z, earthGround(p.x, p.z) + 3)); return p; }
+function npcNext(n) { return n.quests.find(q => !QS.done.includes(qid(q))) || null; }
+
+/* ---------- people models: simple, readable silhouettes with a floating marker ---------- */
+function buildNpc(n) {
+  const g = new THREE.Group(), skin = new THREE.MeshStandardMaterial({ color:0xc99a76, roughness:.7 }), cloth = new THREE.MeshStandardMaterial({ color:n.col, roughness:.8 }), dark = new THREE.MeshStandardMaterial({ color:0x24262b, roughness:.8 }), hair = new THREE.MeshStandardMaterial({ color:n.hair, roughness:.9 });
+  const m = (geo, mat, x, y, z, p = g) => { const o = new THREE.Mesh(geo, mat); o.position.set(x, y, z); o.castShadow = true; p.add(o); return o; };
+  for (const sx of [-1, 1]) m(new THREE.CylinderGeometry(.09, .08, .86, 8), dark, sx * .11, .43, 0);
+  const body = new THREE.Group(); body.position.y = .88; g.add(body);
+  m(new THREE.CylinderGeometry(.2, .17, .62, 10), cloth, 0, .3, 0, body);
+  for (const sx of [-1, 1]) { const a = m(new THREE.CylinderGeometry(.055, .05, .6, 8), cloth, sx * .26, .27, 0, body); a.rotation.z = sx * .12; }
+  const head = new THREE.Group(); head.position.y = .72; body.add(head);
+  m(new THREE.SphereGeometry(.13, 14, 10), skin, 0, .02, 0, head); const hr = m(new THREE.SphereGeometry(.14, 14, 8, 0, Math.PI * 2, 0, Math.PI * .55), hair, 0, .05, .01, head);
+  const mark = new THREE.Mesh(new THREE.OctahedronGeometry(.22, 0), new THREE.MeshBasicMaterial({ color:0xffc83a })); mark.position.y = 2.35; mark.scale.y = 1.6; g.add(mark);
+  const ring = new THREE.Mesh(new THREE.RingGeometry(.8, .95, 32), new THREE.MeshBasicMaterial({ color:0xffc83a, transparent:true, opacity:.5, side:THREE.DoubleSide, depthWrite:false })); ring.rotation.x = -Math.PI / 2; ring.position.y = .04; g.add(ring);
+  scene.add(g);
+  return { g, body, head, mark, ring };
+}
+for (const n of QNPC) { n.m = buildNpc(n); n.pos = npcPos(n); n.m.g.position.copy(n.pos); }
+
+/* ---------- quest definitions, scaled by tier ---------- */
+function qTitle(q) {
+  const [k, type] = q;
+  if (type === 'shard') return SHARDS[k.split(':')[1]].name;
+  if (type === 'final') return 'The Last Light';
+  return { rings:'Ring run', hunt:'Drone sweep', salvage:'Salvage hunt', speed:'Speed trial', altitude:'Altitude trial', courier:'Express delivery', survive:'Hold the line' }[type];
+}
+function qBrief(n, q) {
+  const [k, type] = q, t = typeof k === 'number' ? suitTier(k) : 6, P_ = qParams(type, t);
+  if (type === 'shard') { const s = SHARDS[k.split(':')[1]]; return `The ${s.name} is ${s.hint}. Bring it back to the library.`; }
+  if (type === 'final') return 'All five shards are in the gauntlet. Something has noticed. Two Warden carriers and their escorts are coming for the city. Stop them and SINGULARITY is yours.';
+  return ({ rings:`Fly through ${P_.n} rings in ${P_.time} seconds.`, hunt:`Destroy ${P_.drones} drones${P_.heavy ? `, ${P_.heavy} launchers` : ''}${P_.warden ? ` and ${P_.warden > 1 ? P_.warden + ' Wardens' : 'a Warden carrier'}` : ''} near here.`,
+    salvage:`Find ${P_.n} salvage caches within ${P_.r} metres${P_.time ? ` in ${P_.time} seconds` : ''}. Look for the light beams.`, speed:`Hold ${P_.v} metres per second for two seconds.`,
+    altitude:`Climb to ${P_.alt} metres above sea level.`, courier:`Carry a package to ${P_.toName} in ${P_.time} seconds.`, survive:`Stay within ${P_.r} metres of here and survive ${P_.time} seconds of attacks.` })[type];
+}
+function qParams(type, t) {
+  switch (type) {
+    case 'rings': return { n:5 + 2 * t, time:Math.round(28 + (5 + 2 * t) * (9 - t)), gap:110 + t * 15 };
+    case 'hunt': return { drones:3 + 2 * t, heavy:Math.floor(Math.max(0, t - 1) * 1.5), warden:t >= 6 ? 2 : t >= 4 ? 1 : 0 };
+    case 'salvage': return { n:3 + t, r:220 + 90 * t, time:t >= 3 ? 70 + 40 * (3 + t) - t * 20 : 0 };
+    case 'speed': return { v:[0, 120, 200, 300, 380, 440, 460][t] };
+    case 'altitude': return { alt:[0, 500, 1000, 1800, 2800, 4200, 5200][t] };
+    case 'courier': return { k:t, time:0, toName:'' };
+    case 'survive': return { time:35 + 15 * t, r:420, wave:1 + t };
+  }
+  return {};
+}
+
+/* ---------- running a quest ---------- */
+const qV = new V3(), qV2 = new V3();
+const qRingGeo = new THREE.TorusGeometry(7, .5, 8, 40), qRingMat = new THREE.MeshBasicMaterial({ color:0xffc83a }), qRingMatN = new THREE.MeshBasicMaterial({ color:0xffffff });
+function qAdd(o) { scene.add(o); QS.active.objs.push(o); return o; }
+function qCrate(p, col = 0xffc83a, big) {
+  const g = new THREE.Group(); g.position.copy(p);
+  const b = new THREE.Mesh(new THREE.BoxGeometry(big ? 1.4 : 1.1, big ? 1.4 : .8, big ? 1.4 : 1.1), big ? new THREE.MeshBasicMaterial({ color:col }) : new THREE.MeshStandardMaterial({ color:0x3a4048, metalness:.6, roughness:.4, emissive:col, emissiveIntensity:.35 }));
+  if (big) b.rotation.set(.6, .4, .3); b.position.y = big ? 1.4 : .4; g.add(b);
+  const beam = new THREE.Mesh(new THREE.CylinderGeometry(.5, .5, 160, 8, 1, true), new THREE.MeshBasicMaterial({ color:col, transparent:true, opacity:.28, blending:THREE.AdditiveBlending, depthWrite:false, side:THREE.DoubleSide })); beam.position.y = 80; g.add(beam);
+  g.userData.box = b; return qAdd(g);
+}
+function qSpread(c, r, minR = 40) { const a = Math.random() * Math.PI * 2, d = minR + Math.random() * (r - minR); return new V3(c.x + Math.cos(a) * d, 0, c.z + Math.sin(a) * d); }
+function startQuest(n, q) {
+  if (QS.active) abandonQuest(true);
+  const [k, type] = q, t = typeof k === 'number' ? suitTier(k) : 6, c = n.pos.clone(), A = QS.active = { n, q, type, t, k, c, objs:[], time:0, limit:0, prog:0, need:1, targets:[], label:'' };
+  const P_ = qParams(type, t);
+  if (WORLD_ID !== 'earth') setWorld('earth');
+  if (type === 'rings') {
+    A.need = P_.n; A.limit = P_.time; let p = c.clone().add(qV.set(0, 60, 0)), yaw = Math.random() * 6.28;
+    for (let i = 0; i < P_.n; i++) { yaw += rand(-.9, .9); p = p.clone().add(qV.set(Math.sin(yaw) * P_.gap, 0, Math.cos(yaw) * P_.gap)); p.y = Math.max(floorAt(p.x, p.z) + 25, Math.min(260, p.y + rand(-30, 35))); const r = qAdd(new THREE.Mesh(qRingGeo, i ? qRingMat : qRingMatN)); r.position.copy(p); r.lookAt(qV.copy(p).add(qV2.set(Math.sin(yaw), 0, Math.cos(yaw)))); A.targets.push(r); }
+    A.label = 'Rings';
+  } else if (type === 'hunt') {
+    const sp = () => { const p = qSpread(c, 260, 120); p.y = floorAt(p.x, p.z) + rand(40, 110); return p; };
+    for (let i = 0; i < P_.drones; i++) A.targets.push(spawnEnemy('drone', sp()));
+    for (let i = 0; i < P_.heavy; i++) A.targets.push(spawnEnemy('heavy', sp()));
+    for (let i = 0; i < P_.warden; i++) { const w = spawnEnemy('warden', sp()); A.targets.push(w); G.boss = w; }
+    A.need = A.targets.length; A.label = 'Hostiles';
+  } else if (type === 'salvage') {
+    for (let i = 0; i < P_.n; i++) { const p = qSpread(c, P_.r, 60); p.y = floorAt(p.x, p.z); if (p.y < SEA - 1) p.y = SEA; A.targets.push(qCrate(p)); }
+    A.need = P_.n; A.limit = P_.time; A.label = 'Caches';
+  } else if (type === 'speed') { A.need = P_.v; A.hold = 0; A.label = 'Speed'; }
+  else if (type === 'altitude') { A.need = P_.alt; A.label = 'Altitude'; }
+  else if (type === 'courier') {
+    const opts = QNPC.filter(o => o !== n), far = opts.sort((a, b) => b.pos.distanceTo(c) - a.pos.distanceTo(c)), dest = far[Math.min(far.length - 1, Math.max(0, 6 - t))];
+    A.dest = dest; A.limit = Math.round(dest.pos.distanceTo(c) / (25 + 14 * t) + 25); A.need = 1; A.label = 'Deliver to ' + dest.name;
+    const pk = new THREE.Mesh(new THREE.BoxGeometry(.8, .6, .8), new THREE.MeshStandardMaterial({ color:0xffc83a, emissive:0xffa020, emissiveIntensity:.6 })); A.pkg = qAdd(pk);
+  } else if (type === 'survive') { A.limit = P_.time; A.r = P_.r; A.wave = P_.wave; A.waveT = 2; A.away = 0; A.need = P_.time; A.label = 'Survive'; }
+  else if (type === 'shard') {
+    const id = k.split(':')[1]; A.shard = id; const col = SHARDS[id].col;
+    let p;
+    if (id === 'gravity') { let best = null, bh = -1e9; for (let i = 0; i < 1600; i++) { const x = -5200 + Math.random() * 3400, z = -5200 + Math.random() * 3400, h = earthGround(x, z); if (h > bh) { bh = h; best = new V3(x, h, z); } } p = best; for (let i = 0; i < 6; i++) { const e = spawnEnemy(i < 2 ? 'heavy' : 'drone', p.clone().add(qV.set(rand(-120, 120), rand(30, 80), rand(-120, 120)))); } }
+    else if (id === 'tempo') { A.need = 14; A.limit = 80; let yaw = 0; for (let i = 0; i < 14; i++) { yaw += Math.PI * 2 / 14; const r = qAdd(new THREE.Mesh(qRingGeo, i ? qRingMat : qRingMatN)); r.position.set(Math.sin(yaw) * 260, 120 + Math.sin(i * 1.7) * 70, Math.cos(yaw) * 260); r.lookAt(Math.sin(yaw + .3) * 260, r.position.y, Math.cos(yaw + .3) * 260); A.targets.push(r); } A.label = 'Rings, then the shard'; p = new V3(0, 260, 0); }
+    else if (id === 'storm') { const s = siteById('polaris'); p = new V3(s.x + 60, 0, s.z - 50); p.y = floorAt(p.x, p.z); setWeather && setWeather('storm'); A.limit = 0; for (let i = 0; i < 8; i++) spawnEnemy(i < 3 ? 'heavy' : 'drone', p.clone().add(qV.set(rand(-150, 150), rand(40, 90), rand(-150, 150)))); }
+    else if (id === 'phase') { const s = siteById('rig'); let best = null, bh = 1e9; for (let i = 0; i < 400; i++) { const x = s.x + rand(-400, 400), z = s.z + rand(-400, 400), h = earthGround(x, z); if (h < bh) { bh = h; best = new V3(x, h, z); } } p = best; }
+    else { p = new V3(0, 5200, 0); }
+    A.shardPos = p; A.shardObj = qCrate(p, col, true); if (id !== 'tempo') A.targets = []; if (id !== 'tempo') { A.need = 1; A.label = SHARDS[id].name; }
+  } else if (type === 'final') {
+    const city = new V3(0, 0, 0), sp = () => new V3(rand(-500, 500), rand(150, 260), rand(-500, 500));
+    for (let i = 0; i < 2; i++) { const w = spawnEnemy('warden', sp()); A.targets.push(w); G.boss = w; }
+    for (let i = 0; i < 10; i++) A.targets.push(spawnEnemy(i < 4 ? 'heavy' : 'drone', sp()));
+    A.need = A.targets.length; A.label = 'Defend the city'; A.c = city;
+  }
+  banner(qTitle(q).toUpperCase(), typeof k === 'number' && k !== SING ? 'REWARD: ' + SUITS[k].name : type === 'final' ? 'REWARD: SINGULARITY' : 'ADA WREN');
+  say(qBrief(n, q), { prio:true });
+}
+function cleanQuest() { const A = QS.active; if (!A) return; for (const o of A.objs) scene.remove(o); if (A.type === 'hunt' || A.type === 'final' || A.type === 'survive' || A.type === 'shard') for (const e of enemies.slice()) if (A.targets.includes(e) || A.spawned && A.spawned.includes(e)) killEnemyQuiet(e); QS.active = null; }
+function killEnemyQuiet(e) { const i = enemies.indexOf(e); if (i >= 0) { enemies.splice(i, 1); scene.remove(e.g); if (G.lock === e) G.lock = null; if (G.boss === e) { G.boss = null; G.bossShielded = false; } } }
+function abandonQuest(silent) { if (!QS.active) return; cleanQuest(); if (!silent) say('Quest abandoned. Talk to them again whenever you are ready.', { prio:true }); }
+function failQuest(why) { const A = QS.active; if (!A) return; cleanQuest(); sfx.hurt && sfx.hurt(); banner('QUEST FAILED', why.toUpperCase()); say(`${why} Go back and talk to ${A.n.name.split(' ')[0]} to try again.`, { prio:true }); }
+function completeQuest() {
+  const A = QS.active; if (!A) return;
+  const id = qid(A.q); if (!QS.done.includes(id)) QS.done.push(id);
+  cleanQuest();
+  if (A.type === 'shard') { if (!QS.shards.includes(A.shard)) QS.shards.push(A.shard); banner(SHARDS[A.shard].name.toUpperCase(), `${QS.shards.length} OF 5 RECOVERED`); say(`${SHARDS[A.shard].name} recovered. ${5 - QS.shards.length ? (5 - QS.shards.length) + ' to go. Ada will want to see it.' : 'That is all five. Go and see Ada.'}`, { prio:true }); }
+  else { const k = A.k; if (!QS.owned.includes(k)) QS.owned.push(k); banner('FRAME UNLOCKED', SUITS[k].code + ' · ' + SUITS[k].name); say(`Quest complete. ${SUITS[k].name} is yours. It is waiting in the Suit Library, or say its name to wear it now.`, { prio:true }); renderSuitCards($('suitCards')); }
+  G.score += 500 * (A.t + 1); qSave(); tone('sine', 520, 1040, .4, .06);
+  if (typeof startShot === 'function') startShot('catch', 1);
+}
+function questTick(dt) {
+  for (const n of QNPC) {
+    const d = camera.position.distanceTo(n.pos), vis = WORLD_ID === 'earth' && d < 1400; n.m.g.visible = vis; if (!vis) continue;
+    const nx = npcNext(n), canDo = nx && (QS.active ? QS.active.n !== n : true);
+    n.m.mark.visible = !!nx; n.m.mark.material.color.setHex(QS.active && QS.active.n === n ? 0x7fe9ff : 0xffc83a);
+    n.m.mark.rotation.y += dt * 2; n.m.mark.position.y = 2.35 + Math.sin(G.time * 2.5) * .08; n.m.ring.visible = !!nx;
+    n.m.body.scale.y = 1 + Math.sin(G.time * 1.6 + n.pos.x) * .012;
+    if (d < 30) { const a = Math.atan2(P.pos.x - n.pos.x, P.pos.z - n.pos.z); n.m.g.rotation.y = lerpAng(n.m.g.rotation.y, a, Math.min(1, 3 * dt)); }
+  }
+  // who is close enough to talk to
+  let near = -1;
+  if (G.state === 'play' && WORLD_ID === 'earth' && P.vel.length() < 18) { let bd = 9; QNPC.forEach((n, i) => { const d = P.pos.distanceTo(qV.copy(n.pos).setY(n.pos.y + 1.6)); if (d < bd) { bd = d; near = i; } }); }
+  QS.near = near;
+  const pr = $('npcPrompt'); if (pr) { if (near >= 0 && $('qpanel').hidden) { pr.hidden = false; pr.textContent = `${isTouch ? 'Tap' : 'G'} · Talk to ${QNPC[near].name}`; } else pr.hidden = true; }
+  const A = QS.active; if (!A || G.state !== 'play') return;
+  A.time += dt;
+  if (P.dead) { failQuest('You went down.'); return; }
+  if (A.limit && A.type !== 'survive' && A.time > A.limit) { failQuest('Out of time.'); return; }
+  const suited = P.mode === 'suited';
+  if (A.type === 'rings' || (A.type === 'shard' && A.shard === 'tempo' && A.prog < A.need)) {
+    const r = A.targets[A.prog]; if (r) { r.rotation.z += dt; if (P.pos.distanceTo(r.position) < 9) { scene.remove(r); A.prog++; sfx.ring && sfx.ring(); burst(r.position, 0xffc83a, 30, 20, .5, false); const nx = A.targets[A.prog]; if (nx) nx.material = qRingMatN; } }
+    if (A.type === 'rings' && A.prog >= A.need) completeQuest();
+    return;
+  }
+  if (A.type === 'hunt' || A.type === 'final') { A.prog = A.targets.filter(e => !enemies.includes(e)).length; if (A.prog >= A.need) completeQuest(); return; }
+  if (A.type === 'salvage') {
+    for (const c of A.targets) { if (!c.parent) continue; c.userData.box.rotation.y += dt; if (P.pos.distanceTo(c.position) < 5.5) { scene.remove(c); A.prog++; burst(c.position, 0xffc83a, 30, 14, .5, false); sfx.ring && sfx.ring(); say(`Cache ${A.prog} of ${A.need}.`, { key:'cache', cd:1 }); } }
+    if (A.prog >= A.need) completeQuest(); return;
+  }
+  if (A.type === 'speed') { const v = suited ? P.vel.length() : 0; A.cur = v; A.hold = v >= A.need ? A.hold + dt : 0; if (A.hold >= 2) completeQuest(); return; }
+  if (A.type === 'altitude') { A.cur = P.pos.y; if (P.pos.y >= A.need) completeQuest(); return; }
+  if (A.type === 'courier') { A.pkg.position.copy(P.pos).add(qV.set(0, -1.2, 0)); A.pkg.rotation.y += dt * 2; if (P.pos.distanceTo(A.dest.pos) < 25) completeQuest(); return; }
+  if (A.type === 'survive') {
+    A.spawned = A.spawned || [];
+    const d = Math.hypot(P.pos.x - A.c.x, P.pos.z - A.c.z); A.away = d > A.r ? A.away + dt : 0; if (A.away > 8) { failQuest('You left the area.'); return; } if (A.away > 0) say('Get back to the area!', { key:'qaway', cd:3 });
+    A.waveT -= dt; if (A.waveT <= 0) { A.waveT = Math.max(5, 10 - A.t); for (let i = 0; i < A.wave; i++) { const p = qSpread(A.c, 300, 160); p.y = floorAt(p.x, p.z) + rand(40, 100); A.spawned.push(spawnEnemy(A.t >= 3 && i === 0 ? 'heavy' : 'drone', p)); } }
+    A.prog = Math.min(A.time, A.limit); if (A.time >= A.limit) completeQuest(); return;
+  }
+  if (A.type === 'shard') {
+    const o = A.shardObj; o.userData.box.rotation.x += dt; o.userData.box.rotation.y += dt * 1.3;
+    if (P.pos.distanceTo(qV.copy(A.shardPos).setY(A.shardPos.y + 1.4)) < 6) { burst(qV, SHARDS[A.shard].col, 80, 30, .8, false); completeQuest(); }
+  }
+}
+
+/* ---------- dialogue and journal ---------- */
+{
+  const el = document.createElement('div'); el.id = 'qpanel'; el.className = 'screen center'; el.hidden = true;
+  el.innerHTML = `<div class="card chamfer" style="width:min(640px,100%);text-align:left"><div class="row"><div><h2 style="font-size:22px;margin:0" id="qpName"></h2><p class="label" id="qpRole" style="margin:2px 0 0"></p></div><button class="ghost" id="qpClose" type="button">Close</button></div>
+    <p id="qpText" style="line-height:1.55;margin:14px 0"></p><div class="modes" id="qpOpts"></div></div>`;
+  ($('app') || document.body).appendChild(el);
+  const pr = document.createElement('button'); pr.id = 'npcPrompt'; pr.type = 'button'; pr.hidden = true;
+  pr.style.cssText = 'position:fixed;left:50%;top:62%;transform:translateX(-50%);z-index:31;padding:10px 18px;border-radius:12px;border:1px solid rgba(255,200,58,.6);background:rgba(20,14,4,.78);color:#fff3d6;font:600 14px Oxanium,system-ui,sans-serif;cursor:pointer';
+  pr.addEventListener('mousedown', e => e.stopPropagation()); pr.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); talkTo(QS.near); });
+  pr.addEventListener('touchstart', e => { e.preventDefault(); e.stopPropagation(); talkTo(QS.near); }, { passive:false });
+  ($('app') || document.body).appendChild(pr);
+}
+function talkTo(i) {
+  const n = QNPC[i]; if (!n || G.state !== 'play') return;
+  G.state = 'paused'; exitLock();
+  $('qpName').textContent = n.name; $('qpRole').textContent = n.role;
+  const nx = npcNext(n), owned = QS.owned.length, A = QS.active;
+  let text = n.hello, opts = '';
+  if (A && A.n === n) { text = `You are on "${qTitle(A.q)}" for me. ${qBrief(n, A.q)}`; opts = `<button class="opt" data-q="abandon"><strong>Abandon this quest</strong><span>You can start it again later</span></button>`; }
+  else if (!nx) text = `${n.hello.split('.')[0]}. You have done everything I asked. The frames are yours, pilot.`;
+  else {
+    const [k, type] = nx, t = typeof k === 'number' ? suitTier(k) : 6, need = tierNeed(t);
+    const shardGate = type === 'final' && QS.shards.length < 5;
+    const prevSh = type === 'shard' && owned < tierNeed(6) && !isAdminQ();
+    if ((owned < need || prevSh) && !isAdminQ()) { text = `${n.hello} But this one is ${TIER_NAME[t].toLowerCase()} work. Come back when you have earned ${need} frames. You have ${owned}.`; }
+    else if (shardGate) text = 'The gauntlet still has empty settings. Bring me all five shards first.';
+    else {
+      const reward = typeof k === 'number' ? `Reward: ${SUITS[k].code} ${SUITS[k].name}` : 'Reward: a shard for the gauntlet';
+      text = `${n.hello} ${qBrief(n, nx)}`;
+      opts = `<button class="opt" data-q="accept"><strong>Accept: ${qTitle(nx)} · ${TIER_NAME[t]}</strong><span>${reward}${A ? ' · replaces your current quest' : ''}</span></button>`;
+    }
+  }
+  opts += `<button class="opt" data-q="close"><strong>Not now</strong><span>Back to flying</span></button>`;
+  $('qpText').textContent = text; $('qpOpts').innerHTML = opts; QS.talk = n;
+  showScreen('qpanel'); $('hud').hidden = false;
+  if (voiceOn && window.speechSynthesis) try { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text); u.rate = 1; u.pitch = /Marta|Ines|Sana|Ada/.test(n.name) ? 1.15 : .85; speechSynthesis.speak(u); } catch (e) {}
+}
+$('qpanel').addEventListener('click', e => {
+  if (e.target.closest('#qpClose') || e.target === $('qpanel')) { resume(); return; }
+  const b = e.target.closest('[data-q]'); if (!b) return; const n = QS.talk;
+  resume();
+  if (b.dataset.q === 'accept') startQuest(n, npcNext(n)); else if (b.dataset.q === 'abandon') abandonQuest();
+});
+function openJournal() {
+  if (G.state !== 'play') return; G.state = 'paused'; exitLock();
+  $('qpName').textContent = 'Quest journal'; $('qpRole').textContent = `${QS.owned.length} of ${SUITS.length} frames earned · ${QS.shards.length} of 5 shards${isAdminQ() ? ' · admin: every frame unlocked' : ''}`;
+  const A = QS.active;
+  $('qpText').textContent = A ? `Active: ${qTitle(A.q)} for ${A.n.name}. ${qBrief(A.n, A.q)}` : 'No active quest. Look for people with a gold marker over their heads.';
+  $('qpOpts').innerHTML = QNPC.map(n => { const nx = npcNext(n); return `<div class="opt"><strong>${n.name}</strong><span>${n.role} · ${nx ? 'next: ' + qTitle(nx) + (typeof nx[0] === 'number' ? ' for ' + SUITS[nx[0]].name : '') : 'all done'} · ${Math.round(n.pos.distanceTo(P.pos))} m</span></div>`; }).join('') + (A ? '<button class="opt" data-q="abandon"><strong>Abandon active quest</strong><span></span></button>' : '');
+  QS.talk = A ? A.n : null; showScreen('qpanel'); $('hud').hidden = false;
+}
+// HUD: objective line, waypoint, and gold markers for people with work
+function drawQuestHud() {
+  if (G.state !== 'play' || WORLD_ID !== 'earth') return;
+  const A = QS.active, W = innerWidth;
+  hx.save(); hx.textAlign = 'center';
+  for (const n of QNPC) {
+    if (!npcNext(n) || (A && A.n === n)) continue; const d = n.pos.distanceTo(P.pos); if (d < 12 || d > 3000) continue;
+    const pr = project(qV.copy(n.pos).setY(n.pos.y + 3)); if (!pr.on) continue;
+    hx.fillStyle = '#ffc83a'; hx.font = '700 15px Oxanium, sans-serif'; hx.fillText('!', pr.x, pr.y); hx.font = '600 10px Oxanium, sans-serif'; hx.fillStyle = 'rgba(255,236,190,.85)'; hx.fillText(`${n.name} · ${Math.round(d)} m`, pr.x, pr.y + 13);
+  }
+  if (A) {
+    let txt = '', tgt = null;
+    if (A.type === 'rings' || (A.type === 'shard' && A.shard === 'tempo' && A.prog < A.need)) { txt = `Rings ${A.prog}/${A.need}`; const r = A.targets[A.prog]; if (r) tgt = r.position; }
+    else if (A.type === 'hunt' || A.type === 'final') { txt = `Hostiles destroyed ${A.prog}/${A.need}`; const left = A.targets.filter(e => enemies.includes(e)); if (left.length) tgt = left.reduce((a, b) => a.pos.distanceTo(P.pos) < b.pos.distanceTo(P.pos) ? a : b).pos; }
+    else if (A.type === 'salvage') { txt = `Caches ${A.prog}/${A.need}`; const left = A.targets.filter(c => c.parent); if (left.length) tgt = left.reduce((a, b) => a.position.distanceTo(P.pos) < b.position.distanceTo(P.pos) ? a : b).position; }
+    else if (A.type === 'speed') txt = `Speed ${Math.round(A.cur || 0)} / ${A.need} m/s`;
+    else if (A.type === 'altitude') txt = `Altitude ${Math.round(A.cur || 0)} / ${A.need} m`;
+    else if (A.type === 'courier') { txt = A.label; tgt = A.dest.pos; }
+    else if (A.type === 'survive') { txt = `Survive ${Math.max(0, Math.ceil(A.limit - A.time))} s`; tgt = A.c; }
+    else if (A.type === 'shard') { txt = SHARDS[A.shard].name + (A.shard === 'nova' ? ' · climb to orbit' : ''); tgt = A.shardPos; }
+    if (A.limit && A.type !== 'survive') txt += ` · ${Math.max(0, Math.ceil(A.limit - A.time))} s`;
+    hx.font = '600 13px Oxanium, sans-serif'; hx.fillStyle = 'rgba(0,0,0,.45)'; const w = hx.measureText(txt).width + 30; hx.fillRect(W / 2 - w / 2, 92, w, 24);
+    hx.fillStyle = '#ffc83a'; hx.fillText(`${qTitle(A.q).toUpperCase()} · ${txt}`, W / 2, 109);
+    if (tgt) { const pr = project(qV2.copy(tgt)); const d = tgt.distanceTo ? tgt.distanceTo(P.pos) : 0; hx.strokeStyle = '#ffc83a'; hx.lineWidth = 2; hx.beginPath(); hx.moveTo(pr.x, pr.y - 9); hx.lineTo(pr.x + 9, pr.y); hx.lineTo(pr.x, pr.y + 9); hx.lineTo(pr.x - 9, pr.y); hx.closePath(); hx.stroke(); hx.font = '600 10px Oxanium, sans-serif'; hx.fillStyle = '#ffc83a'; hx.fillText(Math.round(d) + ' m', pr.x, pr.y + 22); }
+  }
+  // SINGULARITY: which shard is active
+  if (P.mode === 'suited' && !P.heavy && G.suitSel === SING) { const s = SH_LIST[SHS.i], cd = SHS.cd[s] || 0; hx.font = '700 12px Oxanium, sans-serif'; hx.fillStyle = '#' + new THREE.Color(SHARDS[s].col).getHexString(); hx.fillText(`${SHARDS[s].name.toUpperCase()} ${cd > 0 ? Math.ceil(cd) + 's' : 'READY · G'}  ·  Shift+G to switch`, W / 2, innerHeight - 170); }
+  hx.restore();
+}
+
+/* ---------- SINGULARITY: the shard gauntlet ---------- */
+const SH_LIST = ['gravity', 'tempo', 'storm', 'phase', 'nova'];
+const SHS = { i:0, cd:{}, fx:[] };
+function shardUse() {
+  if (keys.ShiftLeft || keys.ShiftRight) { SHS.i = (SHS.i + 1) % 5; const s = SH_LIST[SHS.i]; say(`${SHARDS[s].name} selected.`, { key:'shsel', cd:.3 }); tone('sine', 600 + SHS.i * 120, 900 + SHS.i * 120, .12, .04); return; }
+  const s = SH_LIST[SHS.i]; if ((SHS.cd[s] || 0) > 0) { say(`${SHARDS[s].name} recharging.`, { key:'shcd', cd:1.5 }); return; }
+  const col = SHARDS[s].col, here = P.pos.clone(), HL = hitList().slice();
+  camera.getWorldDirection(qV); burst(here, col, 60, 24, .6, false); G.fovKick = 8;
+  if (s === 'gravity') {
+    SHS.cd[s] = 8; const c = here.clone().addScaledVector(qV, 45);
+    for (const e of HL) if (e.pos.distanceTo(here) < 170) { e.vel && e.vel.copy(c).sub(e.pos).multiplyScalar(2.2); e.stun = 2; setTimeout(() => { if (enemies.includes(e) || botLive(e)) damageEnemy(e, 340, e.pos.clone(), true); }, 900); }
+    launchCars(c, 60, -25); shardFx(c, col, 'implode'); sfx.boom(1.5);
+  } else if (s === 'tempo') { SHS.cd[s] = 14; P.btT = 6; say('Time is on our side for six seconds.', { prio:true }); shardFx(here, col, 'ring'); }
+  else if (s === 'storm') {
+    SHS.cd[s] = 9; let n = 0;
+    for (const e of HL) if (e.pos.distanceTo(here) < 320) { arcLine(qV2.copy(e.pos).setY(e.pos.y + 220), e.pos, 0xffffff); arcLine(qV2.copy(e.pos).setY(e.pos.y + 220), e.pos, col); damageEnemy(e, 260, e.pos.clone(), true); n++; }
+    if (typeof WX !== 'undefined') WX.flash = 1; sfx.boom(2); say(n ? `${n} struck.` : 'Lightning, and nothing to hit.', { key:'storm', cd:2 });
+  } else if (s === 'phase') {
+    SHS.cd[s] = 5; const to = here.clone().addScaledVector(qV, 150); to.y = Math.max(to.y, floorAt(to.x, to.z) + 4);
+    shardFx(here, col, 'ring'); P.pos.copy(to); P.phaseT = Math.max(P.phaseT || 0, 1.2); shardFx(to, col, 'ring'); tone('sine', 1400, 300, .25, .05);
+  } else {
+    SHS.cd[s] = 12; explode(here, 4.5, col); addCrater(here, 12); launchCars(here, 60, 34);
+    for (const e of HL) { const d = e.pos.distanceTo(here); if (d < 70) { damageEnemy(e, 520 * (1 - d / 90), null, true); if (e.vel) e.vel.add(qV2.copy(e.pos).sub(here).normalize().multiplyScalar(110)); } }
+    shardFx(here, col, 'nova'); G.shake = Math.max(G.shake, 1.6); sfx.boom(3);
+  }
+}
+function shardFx(p, col, kind) {
+  const m = new THREE.Mesh(new THREE.SphereGeometry(1, 28, 18), new THREE.MeshBasicMaterial({ color:col, transparent:true, opacity:.6, blending:THREE.AdditiveBlending, depthWrite:false }));
+  m.position.copy(p); scene.add(m); SHS.fx.push({ m, t:0, kind });
+}
+function shardTick(dt) {
+  for (const k in SHS.cd) SHS.cd[k] -= dt;
+  for (let i = SHS.fx.length - 1; i >= 0; i--) { const f = SHS.fx[i]; f.t += dt; const k = f.t / .9;
+    const s = f.kind === 'implode' ? 60 * (1 - k) + 1 : f.kind === 'nova' ? 4 + k * 80 : 2 + k * 30; f.m.scale.setScalar(s); f.m.material.opacity = .6 * (1 - k);
+    if (k >= 1) { scene.remove(f.m); SHS.fx.splice(i, 1); } }
+  // the gauntlet itself: five glowing settings on the right hand, and a slowly shifting glow
+  const r = P.rig; if (!r) return;
+  if (G.suitSel === SING && r.suit === SUITS[SING] && !r._gauntlet) {
+    const arm = r.pieces.filter(p => p.zone === 'armR'), host = arm[arm.length - 1]; if (host) {
+      const g = new THREE.Group(); g.name = 'gauntlet'; const gold = new THREE.MeshStandardMaterial({ color:0xd8d2c4, metalness:.95, roughness:.2 });
+      const plate = new THREE.Mesh(new THREE.BoxGeometry(.2, .08, .26), gold); plate.position.set(0, -.12, -.06); g.add(plate);
+      SH_LIST.forEach((s, k) => { const gem = new THREE.Mesh(new THREE.OctahedronGeometry(.035, 0), new THREE.MeshBasicMaterial({ color:SHARDS[s].col })); gem.position.set(-.08 + k * .04, -.07, -.14 + (k % 2) * .03); g.add(gem); });
+      const big = new THREE.Mesh(new THREE.OctahedronGeometry(.05, 0), new THREE.MeshBasicMaterial({ color:0xffffff })); big.position.set(0, -.07, .02); g.add(big); g.userData.big = big;
+      host.g.add(g); r._gauntlet = g;
+    }
+  }
+  if (r._gauntlet && r._gauntlet.userData.big) r._gauntlet.userData.big.material.color.setHex(SHARDS[SH_LIST[SHS.i]].col);
+  if (G.suitSel === SING && r.glowMat) r.glowMat.color.setHSL((G.time * .08) % 1, .6, .82);
+}
+window.addEventListener('keydown', e => {
+  if (e.repeat || G.chatOpen) return;
+  if (!$('qpanel').hidden) { if (e.code === 'Escape' || e.code === 'Minus') { e.preventDefault(); e.stopImmediatePropagation(); resume(); } return; }
+  if (G.state !== 'play') return;
+  if (e.code === 'KeyG' && QS.near >= 0) { e.preventDefault(); e.stopImmediatePropagation(); talkTo(QS.near); return; }
+  if (e.code === 'Minus') { e.preventDefault(); e.stopImmediatePropagation(); openJournal(); }
+}, true);
+renderSuitCards($('suitCards'));
+function lockMsg(i) { const n = QNPC.find(q => q.quests.some(x => x[0] === i)); return n ? `${SUITS[i].name} is locked. Earn it from ${n.name} (${n.role}). Press minus for your quest journal.` : `${SUITS[i].name} is locked.`; }
+$('pauseQuests') && $('pauseQuests').addEventListener('click', () => { resume(); openJournal(); });
+
 let last = performance.now(), blinkT = 0;
 {
   const keep = new Set([...blobs, muzzleLight, ATM.pts, sky, hemi, sun, sun.target, amb, camera, shieldGrp, sonicRing, playerLight, chute, searchLight, searchLight.target, P.rig && P.rig.root, ...flashLights, ...beams.map(b => b.g), PS.pts, PB.pts]);
@@ -12189,7 +12534,7 @@ function step(rdt) {
   if (P.rig) syncPilotBody(P.rig, P.armor, P.camo);
   adminTick();
   updateEarthPlus(rdt);
-  updateFeatures(rdt); photoTick(); updateGfx(rdt); netTick(rdt); animTick(rdt); rescueTick(rdt); updateGfx2(); solTick(rdt); heavyTick(rdt); modTick(rdt); modFxTick(rdt); cineTick(rdt); libTick(rdt); detailTick(rdt);
+  updateFeatures(rdt); photoTick(); updateGfx(rdt); netTick(rdt); animTick(rdt); rescueTick(rdt); updateGfx2(); solTick(rdt); heavyTick(rdt); modTick(rdt); modFxTick(rdt); cineTick(rdt); libTick(rdt); detailTick(rdt); questTick(rdt); shardTick(rdt);
 }
 function loop(now) {
   requestAnimationFrame(loop);
@@ -12205,7 +12550,7 @@ window.__SW_updateGadgets = updateGadgets; window.__SW_inside = (p) => insideBui
 $('pauseStar').addEventListener('click', () => { resume(); openStarMap(); });
 $('pauseRace').addEventListener('click', () => { resume(); openRaces(); });
 $('pausePhoto').addEventListener('click', () => { resume(); enterPhoto(); });
-window.__SW = { LIB, CINE, FIRE, DET, startCine, endCine, libWear, libBuildOne, aiChat, localReply, fireLance, bakeBotRig, MODS, MOD_DEFS, modPartLost, modOffer, openMods, modPick, modK, HV, heavySlam, rocketFist, buildHeavyRig, SOL, solArrive, enterSol, solBody, updateGfx2, GFX2, composer, bloomPass, WP, earthBiome, RES, startRescue, catchSuit, eject, AR, punch, AN, SHOT, startShot, animHit, slowMo, heroLanding, superLaunch, NET, netHost, netJoin, netLeave, openOnline, netSetMode, netHostRace, netChat, GFX, updateGfx, rebuildGrass, toggleSentry, RACES, RACE, startRace, stopRace, WX, setWeather, PH, enterPhoto, exitPhoto, PX, planetExtras, canWarp, sky, updateEnv, updateEarthPlus, earthGround, earthH, earthWater, earthPlaces, adminTeleport, adminWarp, openAdminPanel, SITES, adminCommand, enableAdmin, disableAdmin, startStall, hurtPlayer, damageEnemy, bullets, PILOTS, BOT, spawnBot, removeBot, clearBots, updateBots, botHurt, hitList, syncPilotBody, BUILDS, frameBuild, buildRig, fullArmor, refreshArmor, rimRig, renderer, scene, camera, GradeShader, ATM, trails, popups, barrelRoll, airBrake, coreBurst, spawnFaller, vortices, trackVortex, WORLDS, setWorld, startWarp, openStarMap, worldGround, getWorld:() => WORLD_ID, PERF, sonicPulse, sonarPing, grabCar, throwHeld, repairSpray, carsNear, punchCars, colliders, hotCars, ventCoolant, startStall, crashRagdoll, damageBuilding, collapsing, startMontage, cracks, addCrack, isWater, cycleSuit, openCheat, closeCheat, openPanel, closePanel, unlockOP, frameAbility, superLaunch, tryGrab, cars, pillars, damagePillar, damageCar, swarmDrones, explode, hurtPlayer, callHeavy, punch, frameZones:() => frameZones, G, P, W, SUITS, step, launch, startMode, suitUp, callSuit, eject, toggleSentry, selfDestruct, toggleHelmet, toggleFace, detachPart, reassemble, selectSuit, runCommand, fireHand, fireMissiles, fireLasers, fireMinigun, dropFlares, spawnEnemy, enemies, eMissiles, keys, beginMission, setCam, BAY, PAD, toggleSupersonic, get suitHp() { return suitHp; } };
+window.__SW = { killEnemy, instantSuit, resume, QS, QNPC, SING, startQuest, completeQuest, talkTo, openJournal, shardUse, suitOwned, questTick, BRAIN, brainLoad, LIB, CINE, FIRE, DET, startCine, endCine, libWear, libBuildOne, aiChat, localReply, fireLance, bakeBotRig, MODS, MOD_DEFS, modPartLost, modOffer, openMods, modPick, modK, HV, heavySlam, rocketFist, buildHeavyRig, SOL, solArrive, enterSol, solBody, updateGfx2, GFX2, composer, bloomPass, WP, earthBiome, RES, startRescue, catchSuit, eject, AR, punch, AN, SHOT, startShot, animHit, slowMo, heroLanding, superLaunch, NET, netHost, netJoin, netLeave, openOnline, netSetMode, netHostRace, netChat, GFX, updateGfx, rebuildGrass, toggleSentry, RACES, RACE, startRace, stopRace, WX, setWeather, PH, enterPhoto, exitPhoto, PX, planetExtras, canWarp, sky, updateEnv, updateEarthPlus, earthGround, earthH, earthWater, earthPlaces, adminTeleport, adminWarp, openAdminPanel, SITES, adminCommand, enableAdmin, disableAdmin, startStall, hurtPlayer, damageEnemy, bullets, PILOTS, BOT, spawnBot, removeBot, clearBots, updateBots, botHurt, hitList, syncPilotBody, BUILDS, frameBuild, buildRig, fullArmor, refreshArmor, rimRig, renderer, scene, camera, GradeShader, ATM, trails, popups, barrelRoll, airBrake, coreBurst, spawnFaller, vortices, trackVortex, WORLDS, setWorld, startWarp, openStarMap, worldGround, getWorld:() => WORLD_ID, PERF, sonicPulse, sonarPing, grabCar, throwHeld, repairSpray, carsNear, punchCars, colliders, hotCars, ventCoolant, startStall, crashRagdoll, damageBuilding, collapsing, startMontage, cracks, addCrack, isWater, cycleSuit, openCheat, closeCheat, openPanel, closePanel, unlockOP, frameAbility, superLaunch, tryGrab, cars, pillars, damagePillar, damageCar, swarmDrones, explode, hurtPlayer, callHeavy, punch, frameZones:() => frameZones, G, P, W, SUITS, step, launch, startMode, suitUp, callSuit, eject, toggleSentry, selfDestruct, toggleHelmet, toggleFace, detachPart, reassemble, selectSuit, runCommand, fireHand, fireMissiles, fireLasers, fireMinigun, dropFlares, spawnEnemy, enemies, eMissiles, keys, beginMission, setCam, BAY, PAD, toggleSupersonic, get suitHp() { return suitHp; } };
 })();
 </script>
 </body>

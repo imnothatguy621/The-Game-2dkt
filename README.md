@@ -29,3 +29,8 @@ Out of the box it answers with built-in replies and runs game commands. For free
 `ANTHROPIC_API_KEY` environment variable to the Vercel project (Settings → Environment Variables) and redeploy;
 `api/assistant.js` then answers through Claude (model `claude-haiku-4-5`, override with `ASSISTANT_MODEL`). It is rate-limited
 to 20 requests a minute per visitor.
+
+## Quests and frames
+Everyone starts with SPARROW. Eight people around the map (gold marker over their heads) give quests; each quest earns a frame,
+and better frames mean harder quests. Press G near someone to talk, minus (−) for the quest journal. The final frame, SINGULARITY,
+needs five gauntlet shards from Ada Wren at the Suit Library and a last battle over the city. Admins (control-panel code) have every frame unlocked.
