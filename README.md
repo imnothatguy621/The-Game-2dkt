@@ -25,7 +25,7 @@ The title screen shows the build date under the online button. If your site does
 
 ## Voice assistant (ORIN / VELA)
 Hold the ` key (or tap TALK) and speak. Works in Chrome, Edge and Safari. The assistant uses a British voice from your browser.
-Out of the box it answers with built-in replies and runs game commands. For full free-form conversation, add an
+Out of the box it answers with built-in replies and runs game commands. For free conversation at no cost, open the pause menu and turn on "On-device AI": a small language model (Llama 3.2 1B, or Qwen 2.5 0.5B on lighter devices) downloads once and runs on your own GPU via WebLLM. It needs WebGPU (Chrome or Edge, or Safari 26). Optionally, add an
 `ANTHROPIC_API_KEY` environment variable to the Vercel project (Settings → Environment Variables) and redeploy;
 `api/assistant.js` then answers through Claude (model `claude-haiku-4-5`, override with `ASSISTANT_MODEL`). It is rate-limited
 to 20 requests a minute per visitor.

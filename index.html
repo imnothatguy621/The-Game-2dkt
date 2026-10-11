@@ -391,7 +391,7 @@ details summary{cursor:pointer;color:var(--cyan);font-size:12px;letter-spacing:.
       <div class="cta">
         <button class="go chamfer" id="launch">LAUNCH</button>
         <button class="ghost" id="menuOnline" type="button">PLAY ONLINE · with friends</button>
-        <span class="label" id="buildTag" style="opacity:.7">Build 10 Oct 2026 · LIBRARY</span>
+        <span class="label" id="buildTag" style="opacity:.7">Build 11 Oct 2026 · ON-DEVICE AI</span>
         <button class="ghost" id="creditsBtn">About &amp; credits</button>
         <button class="ghost" id="menuCheat">Controls</button>
         <button class="ghost touch-only" id="menuPanel">Control panel</button>
@@ -11328,7 +11328,11 @@ function hearVoice(t) {
 // anything the command parser does not recognise lands here
 function aiChat(raw) {
   const t = String(raw).toLowerCase().replace(/[^a-z0-9' ]/g, ' ').replace(/\s+/g, ' ').trim();
-  if (AIV.backend !== false && location.protocol.startsWith('http') && !/claude\.ai|claudeusercontent/.test(location.host)) { aiRemote(raw, t); return; }
+  if (/\b(brain|on device|smarter|load ai|ai model|real ai)\b/.test(t) && BRAIN.state !== 'ready') { brainLoad(false); return; }
+  const remoteOk = location.protocol.startsWith('http') && !/claude\.ai|claudeusercontent/.test(location.host);
+  if (AIV.backend === true && remoteOk) { aiRemote(raw, t); return; }
+  if (BRAIN.state === 'ready') { brainReply(raw); return; }
+  if (AIV.backend !== false && remoteOk) { aiRemote(raw, t); return; }
   say(localReply(t), { prio:true });
 }
 function aiCtx() {
@@ -11336,19 +11340,20 @@ function aiCtx() {
   return { suit:s.name, mode:P.heavy ? 'GOLIATH' : P.mode, armor:Math.round((P.heavy ? P.heavyHp / HEAVY.hp : suitHp / SUIT().hp) * 100), power:Math.round(P.energy), altitude:Math.round(P.pos.y), speed:Math.round(P.vel.length()),
     world:WD().name, near:site ? site.name : null, hostiles:enemies.length, wave:G.wave, gameMode:G.mode, day:ENV.day, addons:modList().map(id => MOD_BY[id].name) };
 }
+function aiFallback(raw, t) { if (BRAIN.state === 'ready') brainReply(raw); else say(localReply(t), { prio:true }); }
 async function aiRemote(raw, t) {
   const ctl = new AbortController(), to = setTimeout(() => ctl.abort(), 7000);
   aiCaption(AI.name + ' is thinking…', 3);
   try {
     const r = await fetch('/api/assistant', { method:'POST', headers:{ 'Content-Type':'application/json' }, body:JSON.stringify({ text:String(raw).slice(0, 300), ai:AI.name, ctx:aiCtx(), hist:AIV.hist.slice(-6) }), signal:ctl.signal });
     clearTimeout(to);
-    if (!r.ok) { AIV.backend = false; say(localReply(t), { prio:true }); return; }
+    if (!r.ok) { AIV.backend = false; aiFallback(raw, t); return; }
     const j = await r.json(); AIV.backend = true;
     const reply = String(j.reply || '').slice(0, 400);
     AIV.hist.push({ u:String(raw).slice(0, 200), a:reply }); if (AIV.hist.length > 10) AIV.hist.shift();
     if (reply) say(reply, { prio:true });
     if (j.command && typeof j.command === 'string' && j.command.length < 60) runCommandQuiet(j.command);
-  } catch (e) { clearTimeout(to); AIV.backend = false; say(localReply(t), { prio:true }); }
+  } catch (e) { clearTimeout(to); AIV.backend = false; aiFallback(raw, t); }
 }
 // run a command the assistant chose, without echoing it to chat or falling back to conversation again
 function runCommandQuiet(c) { AIV.quiet = true; try { runCommand('/' + c); } finally { AIV.quiet = false; } }
@@ -11375,6 +11380,7 @@ function localReply(t) {
   if (has('enemy', 'hostile', 'threat')) return enemies.length ? `${enemies.length} hostiles on the board. Say scan for bearings.` : 'Nothing hostile within six hundred metres. Suspiciously quiet.';
   if (has('sing', 'song')) return 'I am contractually forbidden from singing. The last attempt cracked a visor.';
   if (has('bye', 'goodbye', 'see you', 'good night')) return aiPick(['Cheerio. I will keep the lights on.', 'Goodbye. Try not to miss me too much.']);
+  if (BRAIN.state === 'off' && brainSupported()) return 'I only know the basics until you give me a proper brain. Say load your brain, or use the pause menu. It is free and runs on your own machine.';
   return aiPick([`I am afraid that one is beyond me for now. Try status, drones, weather, add-ons, or the name of a suit.`, `Not entirely sure what you mean. Say help and I will list what I can do.`, `Interesting thought. I have filed it under later. Anything I can actually do for you?`]);
 }
 (typeof setInterval === "function" ? setInterval : () => 0)(() => { if (capT > 0) { capT -= .25; if (capT <= 0 && AIV.cap) AIV.cap.style.opacity = 0; } const b = $('micBtn'); if (b) b.hidden = G.state !== 'play' || (typeof CINE !== 'undefined' && CINE.on); }, 250);
@@ -11386,6 +11392,73 @@ window.addEventListener('keydown', e => {
 }, true);
 window.addEventListener('keyup', e => { if (e.code === 'Backquote' && AIV.on) { e.preventDefault(); setTimeout(stopListen, 250); } }, true);
 for (const id of ['voiceBtn', 'voiceBtn2']) if ($(id)) { $(id).setAttribute('aria-pressed', voiceOn); $(id).textContent = 'Spoken lines: ' + (voiceOn ? 'on' : 'off'); }
+
+/* ================= On-device AI: a small language model that runs free in the browser on the GPU (WebLLM) ================= */
+const BRAIN = { engine:null, state:'off', pct:0, model:'', busy:false, err:'' };
+const BRAIN_MODELS = [
+  { id:'Llama-3.2-1B-Instruct-q4f16_1-MLC', label:'standard', mb:880 },
+  { id:'Qwen2.5-0.5B-Instruct-q4f16_1-MLC', label:'light', mb:400 },
+];
+const brainSupported = () => typeof navigator !== 'undefined' && !!navigator.gpu;
+function brainPick() { const low = isTouch || (navigator.deviceMemory && navigator.deviceMemory < 8); return low ? [BRAIN_MODELS[1], BRAIN_MODELS[0]] : BRAIN_MODELS.slice(); }
+function brainLabel() {
+  if (!brainSupported()) return 'On-device AI: needs WebGPU';
+  return { off:'On-device AI: off · free', loading:`On-device AI: loading ${BRAIN.pct}%`, ready:'On-device AI: on', error:'On-device AI: failed, tap to retry' }[BRAIN.state];
+}
+function brainBtn() { const b = $('pauseBrain'); if (b) b.textContent = brainLabel(); }
+async function brainLoad(quiet) {
+  if (BRAIN.state === 'loading' || BRAIN.state === 'ready') return;
+  if (!brainSupported()) { say('On-device AI needs WebGPU. Chrome or Edge on a laptop, or Safari 26, will do it.', { prio:true }); return; }
+  BRAIN.state = 'loading'; BRAIN.pct = 0; brainBtn();
+  if (!quiet) say(`Downloading my brain. It is free and runs on your graphics card. Roughly ${brainPick()[0].mb} megabytes, only the first time.`, { prio:true });
+  try { localStorage.setItem('sw_brain', '1'); } catch (e) {}
+  let lib;
+  try { lib = await import('https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm@0.2.84/+esm'); }
+  catch (e) { BRAIN.state = 'error'; BRAIN.err = 'could not load the AI library'; brainBtn(); say('I could not fetch the AI library. Check the connection and try again.', { prio:true }); return; }
+  for (const m of brainPick()) {
+    try {
+      BRAIN.engine = await lib.CreateMLCEngine(m.id, { initProgressCallback:p => { BRAIN.pct = Math.round((p.progress || 0) * 100); brainBtn(); if (G.state === 'play' && !quiet) aiCaption(`${AI.name} brain download ${BRAIN.pct}%`, 2); } });
+      BRAIN.model = m.id; BRAIN.state = 'ready'; brainBtn();
+      say(quiet ? 'On-device brain online.' : 'Right, that is better. I can think for myself now. Ask me anything.', { prio:true });
+      return;
+    } catch (e) { BRAIN.err = String(e && e.message || e).slice(0, 120); }
+  }
+  BRAIN.state = 'error'; brainBtn();
+  say('The on-device brain would not start on this machine. I will stick to my usual replies.', { prio:true });
+}
+function brainSystem() {
+  return `You are ${AI.name}, the AI built into a flight suit in Skywarden, an original video game. You speak like a calm, witty British butler-engineer: dry humour, polite, British spelling. You are not any character from films or comics.
+Keep every reply to one or two short sentences, under 35 words, spoken aloud. Never use lists, emojis or stage directions. Address the player as pilot.
+Live game state: ${JSON.stringify(aiCtx())}.
+Things the pilot can do: press G to suit up, B to call the suit, U for the GOLIATH heavy shell, 8 for add-ons, 9 for the orbital lance, 4 for the star map, 5 for sky races, Enter to type commands. The Suit Library with every suit is by the Cliffhouse on the south coast. Redrock Canyon in the far west has a mining village.`;
+}
+async function brainReply(raw) {
+  if (BRAIN.busy) { say('One thing at a time, pilot. Still thinking.', { key:'brainbusy', cd:3 }); return; }
+  BRAIN.busy = true;
+  const msgs = [{ role:'system', content:brainSystem() }];
+  for (const h of AIV.hist.slice(-4)) { msgs.push({ role:'user', content:h.u }); msgs.push({ role:'assistant', content:h.a }); }
+  msgs.push({ role:'user', content:String(raw).slice(0, 300) });
+  aiCaption(`${AI.name} is thinking…`, 6);
+  try {
+    const chunks = await BRAIN.engine.chat.completions.create({ messages:msgs, temperature:.75, max_tokens:80, stream:true });
+    let out = '';
+    for await (const c of chunks) { out += (c.choices[0] && c.choices[0].delta.content) || ''; aiCaption(out.trim() || '…', 6); }
+    out = out.replace(/\s+/g, ' ').replace(/^["']|["']$/g, '').trim();
+    const cut = out.match(/^(.{20,}?[.!?])\s(.{10,}?[.!?])/); if (out.length > 220 && cut) out = cut[1] + ' ' + cut[2];
+    if (!out) out = localReply(String(raw).toLowerCase());
+    AIV.hist.push({ u:String(raw).slice(0, 200), a:out }); if (AIV.hist.length > 10) AIV.hist.shift();
+    say(out, { prio:true });
+  } catch (e) { say(localReply(String(raw).toLowerCase()), { prio:true }); }
+  BRAIN.busy = false;
+}
+// pause-menu button, voice/typed command, and auto-reload from the browser cache on later visits
+{
+  const b = document.createElement('button'); b.className = 'ghost'; b.id = 'pauseBrain'; b.type = 'button'; b.textContent = brainLabel();
+  const anchor = $('pauseMods') || $('pauseOnline'); if (anchor && anchor.parentNode) anchor.parentNode.insertBefore(b, anchor.nextSibling);
+  b.addEventListener('click', () => { resume(); if (BRAIN.state === 'ready') say(`On-device brain is running: ${BRAIN.model.split('-q4')[0]}.`, { prio:true }); else brainLoad(false); });
+  let want = false; try { want = localStorage.getItem('sw_brain') === '1'; } catch (e) {}
+  if (want && brainSupported() && !navigator.webdriver) setTimeout(() => brainLoad(true), 15000);
+}
 
 /* ================= Suit Library: a glass-domed rotunda beside the Cliffhouse with every frame on display ================= */
 const LIB = { c:new V3(), pods:[], root:null, next:0, buildT:0, near:-1, R:19, H:9, holo:null, ready:false };
