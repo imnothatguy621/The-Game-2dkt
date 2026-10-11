@@ -33,4 +33,4 @@ to 20 requests a minute per visitor.
 ## Quests and frames
 Everyone starts with SPARROW. Eight people around the map (gold marker over their heads) give quests; each quest earns a frame,
 and better frames mean harder quests. Press G near someone to talk, minus (−) for the quest journal. The final frame, SINGULARITY,
-needs five gauntlet shards from Ada Wren at the Suit Library and a last battle over the city. Admins (control-panel code) have every frame unlocked.
+is won in a last battle over the city for Ada Wren at the Suit Library; its gauntlet starts empty, and each of the five shard powers is unlocked in its own trial. Admins (control-panel code) have every frame unlocked.

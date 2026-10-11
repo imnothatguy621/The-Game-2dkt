@@ -391,7 +391,7 @@ details summary{cursor:pointer;color:var(--cyan);font-size:12px;letter-spacing:.
       <div class="cta">
         <button class="go chamfer" id="launch">LAUNCH</button>
         <button class="ghost" id="menuOnline" type="button">PLAY ONLINE · with friends</button>
-        <span class="label" id="buildTag" style="opacity:.7">Build 11 Oct 2026 · QUESTS</span>
+        <span class="label" id="buildTag" style="opacity:.7">Build 11 Oct 2026 · SHARD TRIALS</span>
         <button class="ghost" id="creditsBtn">About &amp; credits</button>
         <button class="ghost" id="menuCheat">Controls</button>
         <button class="ghost touch-only" id="menuPanel">Control panel</button>
@@ -11465,7 +11465,7 @@ async function brainReply(raw) {
 /* ================= Quests: meet people around the map, earn frames, and the final shard-gauntlet frame SINGULARITY ================= */
 SUITS.push({ code:'SW-Ω', name:'SINGULARITY', role:'Shard gauntlet frame', op:true, quest:true, deploy:'nano', ability:'shards', primary:0x18191e, secondary:0xeceff4, accent:0x8a7cff, glow:0xe9ddff, css:'#e9ddff',
   helm:'crest', chest:'diamond', shoulders:'pods', pack:'wings', bulk:1.08, speed:2.0, hp:2600, blaster:30, beam:'chest', beamPow:4, missiles:10, minigun:true, lasers:true, shield:3, o2:12, stats:[5,5,5],
-  line:'SINGULARITY sealed. Five shards in the gauntlet. G uses the active shard, Shift+G switches shards.' });
+  line:'SINGULARITY sealed. G uses the active shard, Shift+G switches. Empty settings are earned in the shard trials.' });
 const SING = SUITS.length - 1;
 var QS = { owned:[0], done:[], shards:[], active:null, near:-1, npcs:[], marks:[] };
 try { const s = JSON.parse(localStorage.getItem('sw_quests') || 'null'); if (s) { QS.owned = Array.isArray(s.owned) && s.owned.length ? s.owned : [0]; QS.done = s.done || []; QS.shards = s.shards || []; } } catch (e) {}
@@ -12138,7 +12138,7 @@ const QNPC = [
   { id:'lio', name:'Lio Marsh', role:'Islander, Coral Isles', site:'isles', off:[10, 30], col:0x2aa59a, hair:0x2a1a10,
     hello:'Nobody flies out here unless they are looking for trouble or treasure. I can help with both.', quests:[[22, 'rings'], [23, 'courier'], [24, 'hunt']] },
   { id:'ada', name:'Ada Wren', role:'Keeper of the Suit Library', at:() => new V3(LIB.c.x + 6, 0, LIB.c.z + LIB.R + 9), col:0x1d2b45, hair:0xc8a070,
-    hello:'Every frame in here has a story. The last one does not have a pilot yet. Earn the others and we will talk about it.', quests:[[25, 'survive'], [26, 'hunt'], ['shard:gravity', 'shard'], ['shard:tempo', 'shard'], ['shard:storm', 'shard'], ['shard:phase', 'shard'], ['shard:nova', 'shard'], [SING, 'final']] },
+    hello:'Every frame in here has a story. The last one does not have a pilot yet. Earn the others and we will talk about it.', quests:[[25, 'survive'], [26, 'hunt'], [SING, 'final'], ['shard:gravity', 'shard'], ['shard:tempo', 'shard'], ['shard:storm', 'shard'], ['shard:phase', 'shard'], ['shard:nova', 'shard']] },
 ];
 const SHARDS = {
   gravity:{ name:'Gravity shard', col:0x9b6bff, hint:'on the highest peak of the north-western mountains' },
@@ -12177,8 +12177,8 @@ function qTitle(q) {
 }
 function qBrief(n, q) {
   const [k, type] = q, t = typeof k === 'number' ? suitTier(k) : 6, P_ = qParams(type, t);
-  if (type === 'shard') { const s = SHARDS[k.split(':')[1]]; return `The ${s.name} is ${s.hint}. Bring it back to the library.`; }
-  if (type === 'final') return 'All five shards are in the gauntlet. Something has noticed. Two Warden carriers and their escorts are coming for the city. Stop them and SINGULARITY is yours.';
+  if (type === 'shard') { const s = SHARDS[k.split(':')[1]]; return `Trial of the ${s.name.replace(' shard', '')}. Wear SINGULARITY. The ${s.name} is ${s.hint}. Claim it and its power wakes up in the gauntlet.`; }
+  if (type === 'final') return 'Something is coming for the city: two Warden carriers and their escorts. Stop them and SINGULARITY is yours. Its gauntlet will be empty, though. Each shard has to be earned in its own trial.';
   return ({ rings:`Fly through ${P_.n} rings in ${P_.time} seconds.`, hunt:`Destroy ${P_.drones} drones${P_.heavy ? `, ${P_.heavy} launchers` : ''}${P_.warden ? ` and ${P_.warden > 1 ? P_.warden + ' Wardens' : 'a Warden carrier'}` : ''} near here.`,
     salvage:`Find ${P_.n} salvage caches within ${P_.r} metres${P_.time ? ` in ${P_.time} seconds` : ''}. Look for the light beams.`, speed:`Hold ${P_.v} metres per second for two seconds.`,
     altitude:`Climb to ${P_.alt} metres above sea level.`, courier:`Carry a package to ${P_.toName} in ${P_.time} seconds.`, survive:`Stay within ${P_.r} metres of here and survive ${P_.time} seconds of attacks.` })[type];
@@ -12235,6 +12235,7 @@ function startQuest(n, q) {
   } else if (type === 'survive') { A.limit = P_.time; A.r = P_.r; A.wave = P_.wave; A.waveT = 2; A.away = 0; A.need = P_.time; A.label = 'Survive'; }
   else if (type === 'shard') {
     const id = k.split(':')[1]; A.shard = id; const col = SHARDS[id].col;
+    if (G.suitSel !== SING) { selectSuit(SING); if (P.mode !== 'suited') instantSuit(); }
     let p;
     if (id === 'gravity') { let best = null, bh = -1e9; for (let i = 0; i < 1600; i++) { const x = -5200 + Math.random() * 3400, z = -5200 + Math.random() * 3400, h = earthGround(x, z); if (h > bh) { bh = h; best = new V3(x, h, z); } } p = best; for (let i = 0; i < 6; i++) { const e = spawnEnemy(i < 2 ? 'heavy' : 'drone', p.clone().add(qV.set(rand(-120, 120), rand(30, 80), rand(-120, 120)))); } }
     else if (id === 'tempo') { A.need = 14; A.limit = 80; let yaw = 0; for (let i = 0; i < 14; i++) { yaw += Math.PI * 2 / 14; const r = qAdd(new THREE.Mesh(qRingGeo, i ? qRingMat : qRingMatN)); r.position.set(Math.sin(yaw) * 260, 120 + Math.sin(i * 1.7) * 70, Math.cos(yaw) * 260); r.lookAt(Math.sin(yaw + .3) * 260, r.position.y, Math.cos(yaw + .3) * 260); A.targets.push(r); } A.label = 'Rings, then the shard'; p = new V3(0, 260, 0); }
@@ -12259,8 +12260,8 @@ function completeQuest() {
   const A = QS.active; if (!A) return;
   const id = qid(A.q); if (!QS.done.includes(id)) QS.done.push(id);
   cleanQuest();
-  if (A.type === 'shard') { if (!QS.shards.includes(A.shard)) QS.shards.push(A.shard); banner(SHARDS[A.shard].name.toUpperCase(), `${QS.shards.length} OF 5 RECOVERED`); say(`${SHARDS[A.shard].name} recovered. ${5 - QS.shards.length ? (5 - QS.shards.length) + ' to go. Ada will want to see it.' : 'That is all five. Go and see Ada.'}`, { prio:true }); }
-  else { const k = A.k; if (!QS.owned.includes(k)) QS.owned.push(k); banner('FRAME UNLOCKED', SUITS[k].code + ' · ' + SUITS[k].name); say(`Quest complete. ${SUITS[k].name} is yours. It is waiting in the Suit Library, or say its name to wear it now.`, { prio:true }); renderSuitCards($('suitCards')); }
+  if (A.type === 'shard') { if (!QS.shards.includes(A.shard)) QS.shards.push(A.shard); SHS.i = SH_LIST.indexOf(A.shard); banner(SHARDS[A.shard].name.toUpperCase() + ' AWAKENED', `${QS.shards.length} OF 5 SHARDS`); say(`Trial complete. The ${SHARDS[A.shard].name} is set in the gauntlet: ${SHARD_POWER[A.shard]} ${5 - QS.shards.length ? (5 - QS.shards.length) + ' trials left. Ada has the next one.' : 'The gauntlet is complete.'}`, { prio:true }); }
+  else { const k = A.k; if (!QS.owned.includes(k)) QS.owned.push(k); banner('FRAME UNLOCKED', SUITS[k].code + ' · ' + SUITS[k].name); say(k === SING ? 'The city is safe and SINGULARITY is yours. Its gauntlet is empty. Ada has five trials, one for each shard.' : `Quest complete. ${SUITS[k].name} is yours. It is waiting in the Suit Library, or say its name to wear it now.`, { prio:true }); renderSuitCards($('suitCards')); }
   G.score += 500 * (A.t + 1); qSave(); tone('sine', 520, 1040, .4, .06);
   if (typeof startShot === 'function') startShot('catch', 1);
 }
@@ -12330,10 +12331,10 @@ function talkTo(i) {
   else if (!nx) text = `${n.hello.split('.')[0]}. You have done everything I asked. The frames are yours, pilot.`;
   else {
     const [k, type] = nx, t = typeof k === 'number' ? suitTier(k) : 6, need = tierNeed(t);
-    const shardGate = type === 'final' && QS.shards.length < 5;
+    const shardGate = type === 'shard' && !QS.owned.includes(SING) && !isAdminQ();
     const prevSh = type === 'shard' && owned < tierNeed(6) && !isAdminQ();
     if ((owned < need || prevSh) && !isAdminQ()) { text = `${n.hello} But this one is ${TIER_NAME[t].toLowerCase()} work. Come back when you have earned ${need} frames. You have ${owned}.`; }
-    else if (shardGate) text = 'The gauntlet still has empty settings. Bring me all five shards first.';
+    else if (shardGate) text = 'The shard trials are for whoever wears SINGULARITY. Win the frame first.';
     else {
       const reward = typeof k === 'number' ? `Reward: ${SUITS[k].code} ${SUITS[k].name}` : 'Reward: a shard for the gauntlet';
       text = `${n.hello} ${qBrief(n, nx)}`;
@@ -12385,15 +12386,21 @@ function drawQuestHud() {
     if (tgt) { const pr = project(qV2.copy(tgt)); const d = tgt.distanceTo ? tgt.distanceTo(P.pos) : 0; hx.strokeStyle = '#ffc83a'; hx.lineWidth = 2; hx.beginPath(); hx.moveTo(pr.x, pr.y - 9); hx.lineTo(pr.x + 9, pr.y); hx.lineTo(pr.x, pr.y + 9); hx.lineTo(pr.x - 9, pr.y); hx.closePath(); hx.stroke(); hx.font = '600 10px Oxanium, sans-serif'; hx.fillStyle = '#ffc83a'; hx.fillText(Math.round(d) + ' m', pr.x, pr.y + 22); }
   }
   // SINGULARITY: which shard is active
-  if (P.mode === 'suited' && !P.heavy && G.suitSel === SING) { const s = SH_LIST[SHS.i], cd = SHS.cd[s] || 0; hx.font = '700 12px Oxanium, sans-serif'; hx.fillStyle = '#' + new THREE.Color(SHARDS[s].col).getHexString(); hx.fillText(`${SHARDS[s].name.toUpperCase()} ${cd > 0 ? Math.ceil(cd) + 's' : 'READY · G'}  ·  Shift+G to switch`, W / 2, innerHeight - 170); }
+  if (P.mode === 'suited' && !P.heavy && G.suitSel === SING && !SH_LIST.some(shardHave)) { hx.font = '700 12px Oxanium, sans-serif'; hx.fillStyle = 'rgba(233,221,255,.8)'; hx.fillText('GAUNTLET EMPTY · earn shards in Ada\'s trials', W / 2, innerHeight - 170); }
+  else if (P.mode === 'suited' && !P.heavy && G.suitSel === SING) { if (!shardHave(SH_LIST[SHS.i])) SHS.i = SH_LIST.findIndex(shardHave); const s = SH_LIST[SHS.i], cd = SHS.cd[s] || 0; hx.font = '700 12px Oxanium, sans-serif'; hx.fillStyle = '#' + new THREE.Color(SHARDS[s].col).getHexString(); hx.fillText(`${SHARDS[s].name.toUpperCase()} ${cd > 0 ? Math.ceil(cd) + 's' : 'READY · G'}  ·  Shift+G to switch`, W / 2, innerHeight - 170); }
   hx.restore();
 }
 
 /* ---------- SINGULARITY: the shard gauntlet ---------- */
 const SH_LIST = ['gravity', 'tempo', 'storm', 'phase', 'nova'];
 const SHS = { i:0, cd:{}, fx:[] };
+const shardHave = s => isAdminQ() || QS.shards.includes(s);
+const SHARD_POWER = { gravity:'G pulls every enemy nearby into one point and crushes them.', tempo:'G slows time for six seconds.', storm:'G calls lightning down on every enemy in range.', phase:'G blinks you 150 metres forward.', nova:'G sets off a huge blast around you.' };
 function shardUse() {
-  if (keys.ShiftLeft || keys.ShiftRight) { SHS.i = (SHS.i + 1) % 5; const s = SH_LIST[SHS.i]; say(`${SHARDS[s].name} selected.`, { key:'shsel', cd:.3 }); tone('sine', 600 + SHS.i * 120, 900 + SHS.i * 120, .12, .04); return; }
+  const have = SH_LIST.filter(shardHave);
+  if (!have.length) { say('The gauntlet is empty. Each shard is earned in a trial. Talk to Ada Wren at the Suit Library.', { key:'shempty', cd:4, prio:true }); return; }
+  if (!shardHave(SH_LIST[SHS.i])) SHS.i = SH_LIST.indexOf(have[0]);
+  if (keys.ShiftLeft || keys.ShiftRight) { do { SHS.i = (SHS.i + 1) % 5; } while (!shardHave(SH_LIST[SHS.i])); const s = SH_LIST[SHS.i]; say(`${SHARDS[s].name} selected.`, { key:'shsel', cd:.3 }); tone('sine', 600 + SHS.i * 120, 900 + SHS.i * 120, .12, .04); return; }
   const s = SH_LIST[SHS.i]; if ((SHS.cd[s] || 0) > 0) { say(`${SHARDS[s].name} recharging.`, { key:'shcd', cd:1.5 }); return; }
   const col = SHARDS[s].col, here = P.pos.clone(), HL = hitList().slice();
   camera.getWorldDirection(qV); burst(here, col, 60, 24, .6, false); G.fovKick = 8;
@@ -12430,12 +12437,12 @@ function shardTick(dt) {
     const arm = r.pieces.filter(p => p.zone === 'armR'), host = arm[arm.length - 1]; if (host) {
       const g = new THREE.Group(); g.name = 'gauntlet'; const gold = new THREE.MeshStandardMaterial({ color:0xd8d2c4, metalness:.95, roughness:.2 });
       const plate = new THREE.Mesh(new THREE.BoxGeometry(.2, .08, .26), gold); plate.position.set(0, -.12, -.06); g.add(plate);
-      SH_LIST.forEach((s, k) => { const gem = new THREE.Mesh(new THREE.OctahedronGeometry(.035, 0), new THREE.MeshBasicMaterial({ color:SHARDS[s].col })); gem.position.set(-.08 + k * .04, -.07, -.14 + (k % 2) * .03); g.add(gem); });
+      SH_LIST.forEach((s, k) => { const gem = new THREE.Mesh(new THREE.OctahedronGeometry(.035, 0), new THREE.MeshBasicMaterial({ color:SHARDS[s].col })); gem.userData.shard = s; gem.position.set(-.08 + k * .04, -.07, -.14 + (k % 2) * .03); g.add(gem); });
       const big = new THREE.Mesh(new THREE.OctahedronGeometry(.05, 0), new THREE.MeshBasicMaterial({ color:0xffffff })); big.position.set(0, -.07, .02); g.add(big); g.userData.big = big;
       host.g.add(g); r._gauntlet = g;
     }
   }
-  if (r._gauntlet && r._gauntlet.userData.big) r._gauntlet.userData.big.material.color.setHex(SHARDS[SH_LIST[SHS.i]].col);
+  if (r._gauntlet && r._gauntlet.userData.big) { r._gauntlet.userData.big.material.color.setHex(SH_LIST.some(shardHave) ? SHARDS[SH_LIST[SHS.i]].col : 0x3a3a44); r._gauntlet.children.forEach(c => { if (c.userData.shard) c.material.color.setHex(shardHave(c.userData.shard) ? SHARDS[c.userData.shard].col : 0x2a2a30); }); }
   if (G.suitSel === SING && r.glowMat) r.glowMat.color.setHSL((G.time * .08) % 1, .6, .82);
 }
 window.addEventListener('keydown', e => {
