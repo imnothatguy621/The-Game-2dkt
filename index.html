@@ -404,7 +404,7 @@ details summary{cursor:pointer;color:var(--cyan);font-size:12px;letter-spacing:.
       <div class="cta">
         <button class="go chamfer" id="launch">LAUNCH</button>
         <button class="ghost" id="menuOnline" type="button">PLAY ONLINE · with friends</button>
-        <span class="label" id="buildTag" style="opacity:.7">Build 12 Oct 2026 · SEAS</span>
+        <span class="label" id="buildTag" style="opacity:.7">Build 12 Oct 2026 · ACCOUNTS</span>
         <button class="ghost" id="creditsBtn">About &amp; credits</button>
         <button class="ghost" id="menuCheat">Controls</button>
         <button class="ghost touch-only" id="menuPanel">Control panel</button>
@@ -12572,6 +12572,69 @@ function seaTick(dt) {
   }
 }
 
+/* ================= Accounts: Google sign-in through Supabase, with cloud saves for quests and add-ons ================= */
+const ACCT = { sb:null, user:null, ready:false, lastSaved:'', t:0, url:'https://drfazxushjlsmumphpkb.supabase.co', key:'sb_publishable_pX_ztQJ49PakWIihig4m1g_exzN71Ie' };
+const acctAllowed = () => typeof location !== 'undefined' && /^https?:$/.test(location.protocol) && !/claude\.ai|claudeusercontent/.test(location.host);
+function acctUI() {
+  const u = ACCT.user, name = u ? (u.user_metadata && (u.user_metadata.full_name || u.user_metadata.name)) || u.email : '';
+  for (const id of ['menuLogin', 'pauseLogin']) { const b = $(id); if (!b) continue; b.hidden = !acctAllowed(); b.textContent = !ACCT.ready ? (navigator.onLine === false ? 'Sign in (needs internet)' : 'Sign in with Google…') : u ? `Signed in as ${name} · sign out` : 'Sign in with Google · save progress'; }
+  const t = $('acctTag'); if (t) { t.textContent = u ? `☁ Progress saved to ${name}'s account` : ''; t.hidden = !u; }
+}
+{
+  const mk = (id, cls) => { const b = document.createElement('button'); b.className = cls; b.id = id; b.type = 'button'; return b; };
+  const mb = mk('menuLogin', 'ghost'), cta = $('menuOnline') && $('menuOnline').parentNode; if (cta) cta.insertBefore(mb, $('menuOnline').nextSibling);
+  const tag = document.createElement('span'); tag.className = 'label'; tag.id = 'acctTag'; tag.style.opacity = '.75'; tag.hidden = true; if (cta) cta.insertBefore(tag, mb.nextSibling);
+  const pb = mk('pauseLogin', 'ghost'), anchor = $('pauseQuests') || $('pauseMods'); if (anchor && anchor.parentNode) anchor.parentNode.insertBefore(pb, anchor.nextSibling);
+  const click = () => { if (!ACCT.ready) { acctInit(); return; } if (ACCT.user) acctSignOut(); else acctSignIn(); };
+  mb.addEventListener('click', click); pb.addEventListener('click', click);
+  acctUI();
+}
+function acctInit() {
+  if (ACCT.sb || !acctAllowed()) return;
+  const s = document.createElement('script'); s.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js'; s.async = true;
+  s.onload = async () => {
+    try {
+      ACCT.sb = window.supabase.createClient(ACCT.url, ACCT.key, { auth:{ persistSession:true, autoRefreshToken:true, detectSessionInUrl:true } });
+      ACCT.ready = true;
+      ACCT.sb.auth.onAuthStateChange((ev, session) => { const was = ACCT.user; ACCT.user = session ? session.user : null; acctUI(); if (ACCT.user && (!was || was.id !== ACCT.user.id)) acctPull(); });
+      const { data } = await ACCT.sb.auth.getSession(); ACCT.user = data && data.session ? data.session.user : null; acctUI(); if (ACCT.user) acctPull();
+      if (/access_token|code=/.test(location.hash + location.search)) history.replaceState(null, '', location.pathname);
+    } catch (e) { ACCT.ready = false; acctUI(); }
+  };
+  s.onerror = () => { ACCT.ready = false; acctUI(); };
+  document.head.appendChild(s);
+}
+async function acctSignIn() {
+  if (!ACCT.sb) return;
+  const { error } = await ACCT.sb.auth.signInWithOAuth({ provider:'google', options:{ redirectTo:location.origin + location.pathname } });
+  if (error) { say('Google sign-in is not available right now: ' + error.message, { prio:true }); if ($('acctTag')) { $('acctTag').hidden = false; $('acctTag').textContent = 'Sign-in failed: ' + error.message; } }
+}
+async function acctSignOut() { if (!ACCT.sb) return; await ACCT.sb.auth.signOut(); ACCT.user = null; acctUI(); say('Signed out. Progress stays on this device.', { prio:true }); }
+// what gets saved: earned frames, finished quests, shards, free-roam add-ons
+function acctLocal() { return { quests:{ owned:QS.owned.slice().sort((a, b) => a - b), done:QS.done.slice().sort(), shards:QS.shards.slice().sort() }, mods:(MODS && MODS.free || []).slice().sort() }; }
+const unionInto = (a, b) => { for (const x of b || []) if (!a.includes(x)) a.push(x); };
+async function acctPull() {
+  const u = ACCT.user; if (!u || !ACCT.sb) return;
+  const { data, error } = await ACCT.sb.from('profiles').select('progress').eq('id', u.id).maybeSingle();
+  if (error) return;
+  const p = data && data.progress || {};
+  if (p.quests) { unionInto(QS.owned, p.quests.owned); unionInto(QS.done, p.quests.done); unionInto(QS.shards, p.quests.shards); qSave(); renderSuitCards($('suitCards')); }
+  if (p.mods && MODS) { unionInto(MODS.free, p.mods.filter(id => MOD_BY[id])); modSave(); }
+  const name = (u.user_metadata && (u.user_metadata.full_name || u.user_metadata.name)) || '';
+  say(`Welcome back${name ? ', ' + name.split(' ')[0] : ''}. ${QS.owned.length} frames on your account.`, { prio:true });
+  ACCT.lastSaved = ''; acctPush();
+}
+async function acctPush() {
+  const u = ACCT.user; if (!u || !ACCT.sb || navigator.onLine === false) return;
+  const prog = acctLocal(), js = JSON.stringify(prog); if (js === ACCT.lastSaved) return;
+  const md = u.user_metadata || {};
+  const { error } = await ACCT.sb.from('profiles').upsert({ id:u.id, display_name:md.full_name || md.name || null, avatar_url:md.avatar_url || md.picture || null, progress:prog, updated_at:new Date().toISOString() });
+  if (!error) ACCT.lastSaved = js;
+}
+function acctTick(dt) { ACCT.t -= dt; if (ACCT.t <= 0) { ACCT.t = 8; if (ACCT.user) acctPush(); } }
+if (acctAllowed() && typeof navigator !== 'undefined' && !navigator.webdriver) setTimeout(acctInit, 1500);
+typeof addEventListener === 'function' && addEventListener('online', () => { if (!ACCT.sb) acctInit(); acctUI(); });
+
 let last = performance.now(), blinkT = 0;
 {
   const keep = new Set([...blobs, muzzleLight, ATM.pts, sky, hemi, sun, sun.target, amb, camera, shieldGrp, sonicRing, playerLight, chute, searchLight, searchLight.target, P.rig && P.rig.root, ...flashLights, ...beams.map(b => b.g), PS.pts, PB.pts]);
@@ -12657,7 +12720,7 @@ function step(rdt) {
   if (P.rig) syncPilotBody(P.rig, P.armor, P.camo);
   adminTick();
   updateEarthPlus(rdt);
-  updateFeatures(rdt); photoTick(); updateGfx(rdt); netTick(rdt); animTick(rdt); rescueTick(rdt); updateGfx2(); solTick(rdt); heavyTick(rdt); modTick(rdt); modFxTick(rdt); cineTick(rdt); libTick(rdt); detailTick(rdt); questTick(rdt); shardTick(rdt); seaTick(rdt);
+  updateFeatures(rdt); photoTick(); updateGfx(rdt); netTick(rdt); animTick(rdt); rescueTick(rdt); updateGfx2(); solTick(rdt); heavyTick(rdt); modTick(rdt); modFxTick(rdt); cineTick(rdt); libTick(rdt); detailTick(rdt); questTick(rdt); shardTick(rdt); seaTick(rdt); acctTick(rdt);
 }
 function loop(now) {
   requestAnimationFrame(loop);
@@ -12673,7 +12736,7 @@ window.__SW_updateGadgets = updateGadgets; window.__SW_inside = (p) => insideBui
 $('pauseStar').addEventListener('click', () => { resume(); openStarMap(); });
 $('pauseRace').addEventListener('click', () => { resume(); openRaces(); });
 $('pausePhoto').addEventListener('click', () => { resume(); enterPhoto(); });
-window.__SW = { SEAS, killEnemy, instantSuit, resume, QS, QNPC, SING, startQuest, completeQuest, talkTo, openJournal, shardUse, suitOwned, questTick, BRAIN, brainLoad, LIB, CINE, FIRE, DET, startCine, endCine, libWear, libBuildOne, aiChat, localReply, fireLance, bakeBotRig, MODS, MOD_DEFS, modPartLost, modOffer, openMods, modPick, modK, HV, heavySlam, rocketFist, buildHeavyRig, SOL, solArrive, enterSol, solBody, updateGfx2, GFX2, composer, bloomPass, WP, earthBiome, RES, startRescue, catchSuit, eject, AR, punch, AN, SHOT, startShot, animHit, slowMo, heroLanding, superLaunch, NET, netHost, netJoin, netLeave, openOnline, netSetMode, netHostRace, netChat, GFX, updateGfx, rebuildGrass, toggleSentry, RACES, RACE, startRace, stopRace, WX, setWeather, PH, enterPhoto, exitPhoto, PX, planetExtras, canWarp, sky, updateEnv, updateEarthPlus, earthGround, earthH, earthWater, earthPlaces, adminTeleport, adminWarp, openAdminPanel, SITES, adminCommand, enableAdmin, disableAdmin, startStall, hurtPlayer, damageEnemy, bullets, PILOTS, BOT, spawnBot, removeBot, clearBots, updateBots, botHurt, hitList, syncPilotBody, BUILDS, frameBuild, buildRig, fullArmor, refreshArmor, rimRig, renderer, scene, camera, GradeShader, ATM, trails, popups, barrelRoll, airBrake, coreBurst, spawnFaller, vortices, trackVortex, WORLDS, setWorld, startWarp, openStarMap, worldGround, getWorld:() => WORLD_ID, PERF, sonicPulse, sonarPing, grabCar, throwHeld, repairSpray, carsNear, punchCars, colliders, hotCars, ventCoolant, startStall, crashRagdoll, damageBuilding, collapsing, startMontage, cracks, addCrack, isWater, cycleSuit, openCheat, closeCheat, openPanel, closePanel, unlockOP, frameAbility, superLaunch, tryGrab, cars, pillars, damagePillar, damageCar, swarmDrones, explode, hurtPlayer, callHeavy, punch, frameZones:() => frameZones, G, P, W, SUITS, step, launch, startMode, suitUp, callSuit, eject, toggleSentry, selfDestruct, toggleHelmet, toggleFace, detachPart, reassemble, selectSuit, runCommand, fireHand, fireMissiles, fireLasers, fireMinigun, dropFlares, spawnEnemy, enemies, eMissiles, keys, beginMission, setCam, BAY, PAD, toggleSupersonic, get suitHp() { return suitHp; } };
+window.__SW = { ACCT, acctInit, SEAS, killEnemy, instantSuit, resume, QS, QNPC, SING, startQuest, completeQuest, talkTo, openJournal, shardUse, suitOwned, questTick, BRAIN, brainLoad, LIB, CINE, FIRE, DET, startCine, endCine, libWear, libBuildOne, aiChat, localReply, fireLance, bakeBotRig, MODS, MOD_DEFS, modPartLost, modOffer, openMods, modPick, modK, HV, heavySlam, rocketFist, buildHeavyRig, SOL, solArrive, enterSol, solBody, updateGfx2, GFX2, composer, bloomPass, WP, earthBiome, RES, startRescue, catchSuit, eject, AR, punch, AN, SHOT, startShot, animHit, slowMo, heroLanding, superLaunch, NET, netHost, netJoin, netLeave, openOnline, netSetMode, netHostRace, netChat, GFX, updateGfx, rebuildGrass, toggleSentry, RACES, RACE, startRace, stopRace, WX, setWeather, PH, enterPhoto, exitPhoto, PX, planetExtras, canWarp, sky, updateEnv, updateEarthPlus, earthGround, earthH, earthWater, earthPlaces, adminTeleport, adminWarp, openAdminPanel, SITES, adminCommand, enableAdmin, disableAdmin, startStall, hurtPlayer, damageEnemy, bullets, PILOTS, BOT, spawnBot, removeBot, clearBots, updateBots, botHurt, hitList, syncPilotBody, BUILDS, frameBuild, buildRig, fullArmor, refreshArmor, rimRig, renderer, scene, camera, GradeShader, ATM, trails, popups, barrelRoll, airBrake, coreBurst, spawnFaller, vortices, trackVortex, WORLDS, setWorld, startWarp, openStarMap, worldGround, getWorld:() => WORLD_ID, PERF, sonicPulse, sonarPing, grabCar, throwHeld, repairSpray, carsNear, punchCars, colliders, hotCars, ventCoolant, startStall, crashRagdoll, damageBuilding, collapsing, startMontage, cracks, addCrack, isWater, cycleSuit, openCheat, closeCheat, openPanel, closePanel, unlockOP, frameAbility, superLaunch, tryGrab, cars, pillars, damagePillar, damageCar, swarmDrones, explode, hurtPlayer, callHeavy, punch, frameZones:() => frameZones, G, P, W, SUITS, step, launch, startMode, suitUp, callSuit, eject, toggleSentry, selfDestruct, toggleHelmet, toggleFace, detachPart, reassemble, selectSuit, runCommand, fireHand, fireMissiles, fireLasers, fireMinigun, dropFlares, spawnEnemy, enemies, eMissiles, keys, beginMission, setCam, BAY, PAD, toggleSupersonic, get suitHp() { return suitHp; } };
 })();
 </script>
 </body>
