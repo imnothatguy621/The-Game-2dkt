@@ -404,7 +404,7 @@ details summary{cursor:pointer;color:var(--cyan);font-size:12px;letter-spacing:.
       <div class="cta">
         <button class="go chamfer" id="launch">LAUNCH</button>
         <button class="ghost" id="menuOnline" type="button">PLAY ONLINE · with friends</button>
-        <span class="label" id="buildTag" style="opacity:.7">Build 12 Oct 2026 · OFFLINE</span>
+        <span class="label" id="buildTag" style="opacity:.7">Build 12 Oct 2026 · SEAS</span>
         <button class="ghost" id="creditsBtn">About &amp; credits</button>
         <button class="ghost" id="menuCheat">Controls</button>
         <button class="ghost touch-only" id="menuPanel">Control panel</button>
@@ -8750,32 +8750,40 @@ const GFX = { t:0 };
   for (let i = 0; i < n * n; i++) { const d = clamp((SEA - HG.h[i]) / 400, 0, 1); const e = Math.sqrt(d) * 255; data[i * 4] = e; data[i * 4 + 1] = e; data[i * 4 + 2] = e; data[i * 4 + 3] = 255; }
   const depthTex = new THREE.DataTexture(data, n, n, THREE.RGBAFormat); depthTex.magFilter = depthTex.minFilter = THREE.LinearFilter; depthTex.needsUpdate = true;
   const WAVES = `
-    float waveH(vec2 p, float t, out vec2 g) {
-      float h = 0.0; g = vec2(0.0);
-      vec2 d1 = normalize(vec2(1.0, .35)), d2 = normalize(vec2(-.4, 1.0)), d3 = normalize(vec2(.8, -.7)), d4 = normalize(vec2(-1.0, -.2));
-      float k1 = 6.2832 / 140.0, k2 = 6.2832 / 82.0, k3 = 6.2832 / 47.0, k4 = 6.2832 / 29.0;
-      float a1 = .55, a2 = .32, a3 = .16, a4 = .08;
-      float p1 = dot(d1, p) * k1 + t * .55, p2 = dot(d2, p) * k2 + t * .8, p3 = dot(d3, p) * k3 + t * 1.15, p4 = dot(d4, p) * k4 + t * 1.5;
-      h = a1 * sin(p1) + a2 * sin(p2) + a3 * sin(p3) + a4 * sin(p4);
-      g = d1 * a1 * k1 * cos(p1) + d2 * a2 * k2 * cos(p2) + d3 * a3 * k3 * cos(p3) + d4 * a4 * k4 * cos(p4);
+    uniform float uAmp; uniform float uChop;
+    // six crossing swells; returns height, its slope, and a sideways push that sharpens crests
+    float waveH(vec2 p, float t, out vec2 g, out vec2 D) {
+      float h = 0.0; g = vec2(0.0); D = vec2(0.0);
+      vec2 dr[6]; float L[6]; float A[6]; float S[6];
+      dr[0] = normalize(vec2(1.0, .35)); L[0] = 160.0; A[0] = .62; S[0] = .5;
+      dr[1] = normalize(vec2(-.4, 1.0)); L[1] = 96.0;  A[1] = .36; S[1] = .72;
+      dr[2] = normalize(vec2(.8, -.7));  L[2] = 57.0;  A[2] = .2;  S[2] = 1.0;
+      dr[3] = normalize(vec2(-1.0, -.2)); L[3] = 33.0; A[3] = .11; S[3] = 1.35;
+      dr[4] = normalize(vec2(.25, .95)); L[4] = 19.0;  A[4] = .06; S[4] = 1.8;
+      dr[5] = normalize(vec2(-.7, .55)); L[5] = 11.0;  A[5] = .035; S[5] = 2.4;
+      for (int i = 0; i < 6; i++) {
+        float k = 6.2832 / L[i], a = A[i] * uAmp, ph = dot(dr[i], p) * k + t * S[i] + float(i) * 1.7;
+        float sn = sin(ph), cs = cos(ph);
+        h += a * sn; g += dr[i] * a * k * cs; D += dr[i] * a * cs * uChop;
+      }
       return h;
     }`;
   const mat = new THREE.ShaderMaterial({
     uniforms:THREE.UniformsUtils.merge([THREE.UniformsLib.fog, {
       uTime:{ value:0 }, uDepth:{ value:null }, uHG:{ value:new THREE.Vector4() }, uSea:{ value:SEA },
       uSun:{ value:new V3(0, 1, 0) }, uSunCol:{ value:new THREE.Color() }, uSky:{ value:new THREE.Color() }, uHor:{ value:new THREE.Color() },
-      uDeep:{ value:new THREE.Color(0x0b3a5c) }, uShallow:{ value:new THREE.Color(0x2fb6c4) }, uCity:{ value:new THREE.Vector4(CITY_RECT.x0, CITY_RECT.x1, CITY_RECT.z0, CITY_RECT.z1) }, uGlint:{ value:1 }
+      uDeep:{ value:new THREE.Color(0x0b3a5c) }, uShallow:{ value:new THREE.Color(0x2fb6c4) }, uAmp:{ value:1 }, uChop:{ value:1.2 }, uDet:{ value:1 }, uFoam:{ value:new THREE.Color(0xf2f8ff) }, uCity:{ value:new THREE.Vector4(CITY_RECT.x0, CITY_RECT.x1, CITY_RECT.z0, CITY_RECT.z1) }, uGlint:{ value:1 }
     }]),
     vertexShader:`
       #include <common>
       #include <fog_pars_vertex>
-      uniform float uTime; varying vec3 vW; varying vec2 vG;
+      uniform float uTime; varying vec3 vW; varying vec2 vG; varying float vH;
       ${WAVES}
       void main() {
         vec4 w = modelMatrix * vec4(position, 1.0);
-        vec2 g; float h = waveH(w.xz, uTime, g);
+        vec2 g, D; float h = waveH(w.xz, uTime, g, D);
         float fade = 1.0 - smoothstep(1800.0, 3400.0, length(w.xz - cameraPosition.xz));
-        w.y += h * fade; vW = w.xyz; vG = g * fade;
+        w.y += h * fade; w.xz -= D * fade; vW = w.xyz; vG = g * fade; vH = h * fade;
         vec4 mvPosition = viewMatrix * w;
         gl_Position = projectionMatrix * mvPosition;
         #include <fog_vertex>
@@ -8784,8 +8792,11 @@ const GFX = { t:0 };
       #include <common>
       #include <fog_pars_fragment>
       uniform float uTime, uSea, uGlint; uniform sampler2D uDepth; uniform vec4 uHG, uCity;
-      uniform vec3 uSun, uSunCol, uSky, uHor, uDeep, uShallow;
-      varying vec3 vW; varying vec2 vG;
+      uniform vec3 uSun, uSunCol, uSky, uHor, uDeep, uShallow, uFoam; uniform float uAmp, uDet;
+      varying vec3 vW; varying vec2 vG; varying float vH;
+      float oh(vec2 p){ vec3 p3 = fract(vec3(p.xyx) * .1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }
+      float ovn(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(oh(i), oh(i + vec2(1.0, 0.0)), f.x), mix(oh(i + vec2(0.0, 1.0)), oh(i + vec2(1.0, 1.0)), f.x), f.y); }
+      vec2 ogr(vec2 p){ float a = ovn(p), b = ovn(p + vec2(.35, 0.0)), c = ovn(p + vec2(0.0, .35)); return vec2(b - a, c - a) / .35; }
       float depthAt(vec2 xz) {
         vec2 uv = ((xz - uHG.xy) / uHG.z + 0.5) / uHG.w;
         if (uv.x < 0.0 || uv.y < 0.0 || uv.x > 1.0 || uv.y > 1.0) return 400.0;
@@ -8794,9 +8805,12 @@ const GFX = { t:0 };
       void main() {
         if (vW.x > uCity.x && vW.x < uCity.y && vW.z > uCity.z && vW.z < uCity.w) discard;
         float dep = depthAt(vW.xz);
-        // fine ripples on top of the big swells
-        vec2 q = vW.xz;
-        vec2 rip = vec2(sin(q.x * .9 + uTime * 2.1) + sin(q.y * 1.3 - uTime * 1.7) * .6, cos(q.y * 1.1 + uTime * 1.9) + cos(q.x * .7 - uTime * 2.4) * .6) * .045;
+        // fine ripples and wind chop on top of the big swells, faded out with distance so far water never shimmers into a grid
+        vec2 q = vW.xz; float cd = length(vW - cameraPosition);
+        float l1 = 1.0 - smoothstep(30.0, 260.0, cd), l2 = 1.0 - smoothstep(150.0, 1300.0, cd), l3 = 1.0 - smoothstep(600.0, 4000.0, cd);
+        vec2 rip = ogr(q * .55 + uTime * vec2(.9, .35)) * .1 * l1 + ogr(q * .55 * 1.7 - uTime * vec2(.4, .8)) * .07 * l1
+                 + ogr(q * .12 + uTime * vec2(.25, -.18)) * .16 * l2 + ogr(q * .025 - uTime * vec2(.05, .04)) * .22 * l3;
+        rip *= uDet;
         vec3 n = normalize(vec3(-vG.x - rip.x, 1.0, -vG.y - rip.y));
         vec3 V = normalize(cameraPosition - vW);
         bool below = cameraPosition.y < uSea;
@@ -8810,6 +8824,17 @@ const GFX = { t:0 };
         vec3 col = mix(water, sky, fres * 0.85);
         float sd = max(dot(R, uSun), 0.0);
         col += uSunCol * (pow(sd, 260.0) * 4.0 + pow(sd, 24.0) * 0.18) * uGlint;
+        // sunlight shining through the thin tops of the waves
+        float crestK = smoothstep(.15 * uAmp, .9 * uAmp, vH);
+        float sss = pow(max(dot(V, -uSun * vec3(1.0, 0.0, 1.0)) * .5 + .5, 0.0), 3.0) * crestK * (1.0 - fres);
+        col += mix(uShallow, vec3(.35, .95, .8), .35) * sss * .55 * max(uSunCol.r, .25);
+        // whitecaps on the steepest crests, broken up by noise and drifting with the wind
+        float steep = length(vG) * 2.4;
+        float cap = smoothstep(.78, 1.0, crestK + steep * .3) * smoothstep(.55, .85, ovn(q * .07 + uTime * vec2(.12, .05)) * .6 + ovn(q * .6 - uTime * .3) * .4) * l2;
+        cap *= .55 + .45 * ovn(q * 2.2 + uTime);
+        col = mix(col, uFoam, clamp(cap * .55, 0.0, .55));
+        // sparkle on the near ripples
+        col += uSunCol * pow(max(dot(reflect(-V, normalize(n + vec3(rip.x, 0.0, rip.y) * 3.0)), uSun), 0.0), 900.0) * 3.0 * l1 * uGlint;
         float ph = sin(uTime * 1.3 + vW.x * .13 + vW.z * .09) * .5 + .5;
         float foam = (1.0 - smoothstep(0.0, 1.2 + ph * 1.4, dep)) * 0.9;
         foam *= 0.55 + 0.45 * sin(vW.x * 1.7 + uTime * 3.0) * sin(vW.z * 1.3 - uTime * 2.2);
@@ -12469,6 +12494,84 @@ renderSuitCards($('suitCards'));
 function lockMsg(i) { const n = QNPC.find(q => q.quests.some(x => x[0] === i)); return n ? `${SUITS[i].name} is locked. Earn it from ${n.name} (${n.role}). Press minus for your quest journal.` : `${SUITS[i].name} is locked.`; }
 $('pauseQuests') && $('pauseQuests').addEventListener('click', () => { resume(); openJournal(); });
 
+/* ================= Seas on the other worlds: Thalassa gets the full ocean, Cinder a living lava sea ================= */
+const SEAS = {};
+{
+  // Thalassa: same detailed water as Earth, tuned for an open ocean world (bigger swells, tropical colour, no shore map)
+  const m = GFX.ocean.material.clone();
+  m.uniforms.uDepth.value = GFX.ocean.material.uniforms.uDepth.value;
+  m.uniforms.uHG.value.set(1e7, 1e7, 1, 1);          // outside the Earth depth map, so it reads as deep everywhere
+  m.uniforms.uCity.value.set(1, 0, 1, 0);
+  m.uniforms.uAmp.value = 1.8; m.uniforms.uChop.value = 1.5;
+  m.uniforms.uDeep.value.setHex(0x04506c); m.uniforms.uShallow.value.setHex(0x2fe0cc);
+  const near = new THREE.Mesh(GFX.ocean.geometry, m); near.frustumCulled = false; near.renderOrder = 1; near.visible = false; scene.add(near);
+  const far = new THREE.Mesh(GFX.oceanFar.geometry, m); far.position.y = -1.5; far.frustumCulled = false; far.visible = false; scene.add(far);
+  SEAS.thalassa = { near, far, m };
+}
+{
+  // Cinder: moving crust plates over molten rock, glowing seams, slow heaving swells
+  const seg = isTouch ? 90 : 140, S = 3600;
+  const geo = new THREE.PlaneGeometry(S, S, seg, seg); geo.rotateX(-Math.PI / 2);
+  const m = new THREE.ShaderMaterial({ fog:true,
+    uniforms:THREE.UniformsUtils.merge([THREE.UniformsLib.fog, { uT:{ value:0 } }]),
+    vertexShader:`#include <common>
+      #include <fog_pars_vertex>
+      uniform float uT; varying vec3 vW; varying float vH;
+      void main(){ vec4 w = modelMatrix * vec4(position, 1.0);
+        float h = sin(w.x * .018 + uT * .35) * .7 + sin(w.z * .023 - uT * .27) * .55 + sin((w.x + w.z) * .041 + uT * .5) * .25;
+        float fade = 1.0 - smoothstep(1200.0, 1800.0, length(w.xz - cameraPosition.xz)); w.y += h * fade; vW = w.xyz; vH = h;
+        vec4 mvPosition = viewMatrix * w; gl_Position = projectionMatrix * mvPosition;
+        #include <fog_vertex>
+      }`,
+    fragmentShader:`#include <common>
+      #include <fog_pars_fragment>
+      uniform float uT; varying vec3 vW; varying float vH;
+      float hh(vec2 p){ vec3 p3 = fract(vec3(p.xyx) * .1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }
+      vec2 h2(vec2 p){ return vec2(hh(p), hh(p + 17.31)); }
+      float vn(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(hh(i), hh(i + vec2(1.0, 0.0)), f.x), mix(hh(i + vec2(0.0, 1.0)), hh(i + vec2(1.0, 1.0)), f.x), f.y); }
+      float fbm(vec2 p){ return vn(p) * .55 + vn(p * 2.1 + 3.1) * .28 + vn(p * 4.3 - 1.7) * .17; }
+      // distance to the nearest crust-plate edge (cellular noise)
+      vec2 cells(vec2 p, float t){ vec2 i = floor(p), f = fract(p); float d1 = 8.0, d2 = 8.0;
+        for (int y = -1; y <= 1; y++) for (int x = -1; x <= 1; x++) { vec2 o = vec2(float(x), float(y)); vec2 r = h2(i + o); r = .5 + .42 * sin(t * .25 + 6.2831 * r); float d = length(o + r - f); if (d < d1) { d2 = d1; d1 = d; } else if (d < d2) d2 = d; }
+        return vec2(d1, d2 - d1); }
+      void main(){
+        float cd = length(vW - cameraPosition), lod = 1.0 - smoothstep(200.0, 1400.0, cd);
+        vec2 p = vW.xz * .045 + vec2(fbm(vW.xz * .006 + uT * .02), fbm(vW.xz * .006 - uT * .015)) * 3.0;
+        vec2 c = cells(p, uT), c2 = cells(p * 2.7 + 9.0, uT * 1.3);
+        float seam = 1.0 - smoothstep(.0, .12 + .1 * (1.0 - lod), c.y);
+        float seam2 = (1.0 - smoothstep(.0, .08, c2.y)) * lod * .6;
+        float flow = fbm(vW.xz * .01 + vec2(uT * .05, -uT * .03));
+        float open = smoothstep(.62, .82, flow);                    // rivers of open melt between the plates
+        float pulse = .85 + .15 * sin(uT * 1.7 + flow * 12.0);
+        vec3 melt = mix(vec3(1.0, .28, .03), vec3(1.0, .82, .32), fbm(vW.xz * .05 + uT * .2)) * 2.2 * pulse;
+        vec3 crust = mix(vec3(.07, .035, .025), vec3(.2, .1, .06), fbm(vW.xz * .08)) * (.7 + .5 * c.x);
+        crust += vec3(.6, .12, .02) * smoothstep(.3, 0.0, c.x) * .25;    // plates still glowing near their centres
+        vec3 col = mix(crust, melt, clamp(max(max(seam, seam2), open), 0.0, 1.0));
+        col += vec3(1.0, .4, .08) * smoothstep(.4, 1.2, vH) * .25;      // swell crests glow
+        gl_FragColor = vec4(col, 1.0);
+        #include <fog_fragment>
+      }` });
+  const mesh = new THREE.Mesh(geo, m); mesh.frustumCulled = false; mesh.visible = false; scene.add(mesh);
+  SEAS.cinder = { mesh, m, step:S / seg };
+}
+function seaTick(dt) {
+  const T = SEAS.thalassa, here = WORLD_ID === 'thalassa', cam = camera.position, u = sky.material.uniforms;
+  T.near.visible = T.far.visible = here;
+  if (here) {
+    const def = WORLDS.thalassa; if (def.waterMesh) def.waterMesh.visible = false;
+    const st = GFX.oceanStep * 4; T.near.position.set(Math.round(cam.x / st) * st, 0, Math.round(cam.z / st) * st); T.far.position.x = cam.x; T.far.position.z = cam.z;
+    const o = T.m.uniforms; o.uTime.value = GFX.t; o.uSun.value.copy(u.sunDir.value).normalize(); o.uSunCol.value.copy(u.sunCol.value);
+    o.uSky.value.copy(u.mid.value); o.uHor.value.copy(u.hor.value); o.uGlint.value = 1;
+  }
+  const C = SEAS.cinder, lava = WORLD_ID === 'cinder';
+  C.mesh.visible = lava;
+  if (lava) {
+    if (PX.cinder && PX.cinder.lava) PX.cinder.lava.visible = false;
+    C.mesh.position.set(Math.round(cam.x / (C.step * 4)) * C.step * 4, WORLDS.cinder.lava, Math.round(cam.z / (C.step * 4)) * C.step * 4);
+    C.m.uniforms.uT.value += dt;
+  }
+}
+
 let last = performance.now(), blinkT = 0;
 {
   const keep = new Set([...blobs, muzzleLight, ATM.pts, sky, hemi, sun, sun.target, amb, camera, shieldGrp, sonicRing, playerLight, chute, searchLight, searchLight.target, P.rig && P.rig.root, ...flashLights, ...beams.map(b => b.g), PS.pts, PB.pts]);
@@ -12554,7 +12657,7 @@ function step(rdt) {
   if (P.rig) syncPilotBody(P.rig, P.armor, P.camo);
   adminTick();
   updateEarthPlus(rdt);
-  updateFeatures(rdt); photoTick(); updateGfx(rdt); netTick(rdt); animTick(rdt); rescueTick(rdt); updateGfx2(); solTick(rdt); heavyTick(rdt); modTick(rdt); modFxTick(rdt); cineTick(rdt); libTick(rdt); detailTick(rdt); questTick(rdt); shardTick(rdt);
+  updateFeatures(rdt); photoTick(); updateGfx(rdt); netTick(rdt); animTick(rdt); rescueTick(rdt); updateGfx2(); solTick(rdt); heavyTick(rdt); modTick(rdt); modFxTick(rdt); cineTick(rdt); libTick(rdt); detailTick(rdt); questTick(rdt); shardTick(rdt); seaTick(rdt);
 }
 function loop(now) {
   requestAnimationFrame(loop);
@@ -12570,7 +12673,7 @@ window.__SW_updateGadgets = updateGadgets; window.__SW_inside = (p) => insideBui
 $('pauseStar').addEventListener('click', () => { resume(); openStarMap(); });
 $('pauseRace').addEventListener('click', () => { resume(); openRaces(); });
 $('pausePhoto').addEventListener('click', () => { resume(); enterPhoto(); });
-window.__SW = { killEnemy, instantSuit, resume, QS, QNPC, SING, startQuest, completeQuest, talkTo, openJournal, shardUse, suitOwned, questTick, BRAIN, brainLoad, LIB, CINE, FIRE, DET, startCine, endCine, libWear, libBuildOne, aiChat, localReply, fireLance, bakeBotRig, MODS, MOD_DEFS, modPartLost, modOffer, openMods, modPick, modK, HV, heavySlam, rocketFist, buildHeavyRig, SOL, solArrive, enterSol, solBody, updateGfx2, GFX2, composer, bloomPass, WP, earthBiome, RES, startRescue, catchSuit, eject, AR, punch, AN, SHOT, startShot, animHit, slowMo, heroLanding, superLaunch, NET, netHost, netJoin, netLeave, openOnline, netSetMode, netHostRace, netChat, GFX, updateGfx, rebuildGrass, toggleSentry, RACES, RACE, startRace, stopRace, WX, setWeather, PH, enterPhoto, exitPhoto, PX, planetExtras, canWarp, sky, updateEnv, updateEarthPlus, earthGround, earthH, earthWater, earthPlaces, adminTeleport, adminWarp, openAdminPanel, SITES, adminCommand, enableAdmin, disableAdmin, startStall, hurtPlayer, damageEnemy, bullets, PILOTS, BOT, spawnBot, removeBot, clearBots, updateBots, botHurt, hitList, syncPilotBody, BUILDS, frameBuild, buildRig, fullArmor, refreshArmor, rimRig, renderer, scene, camera, GradeShader, ATM, trails, popups, barrelRoll, airBrake, coreBurst, spawnFaller, vortices, trackVortex, WORLDS, setWorld, startWarp, openStarMap, worldGround, getWorld:() => WORLD_ID, PERF, sonicPulse, sonarPing, grabCar, throwHeld, repairSpray, carsNear, punchCars, colliders, hotCars, ventCoolant, startStall, crashRagdoll, damageBuilding, collapsing, startMontage, cracks, addCrack, isWater, cycleSuit, openCheat, closeCheat, openPanel, closePanel, unlockOP, frameAbility, superLaunch, tryGrab, cars, pillars, damagePillar, damageCar, swarmDrones, explode, hurtPlayer, callHeavy, punch, frameZones:() => frameZones, G, P, W, SUITS, step, launch, startMode, suitUp, callSuit, eject, toggleSentry, selfDestruct, toggleHelmet, toggleFace, detachPart, reassemble, selectSuit, runCommand, fireHand, fireMissiles, fireLasers, fireMinigun, dropFlares, spawnEnemy, enemies, eMissiles, keys, beginMission, setCam, BAY, PAD, toggleSupersonic, get suitHp() { return suitHp; } };
+window.__SW = { SEAS, killEnemy, instantSuit, resume, QS, QNPC, SING, startQuest, completeQuest, talkTo, openJournal, shardUse, suitOwned, questTick, BRAIN, brainLoad, LIB, CINE, FIRE, DET, startCine, endCine, libWear, libBuildOne, aiChat, localReply, fireLance, bakeBotRig, MODS, MOD_DEFS, modPartLost, modOffer, openMods, modPick, modK, HV, heavySlam, rocketFist, buildHeavyRig, SOL, solArrive, enterSol, solBody, updateGfx2, GFX2, composer, bloomPass, WP, earthBiome, RES, startRescue, catchSuit, eject, AR, punch, AN, SHOT, startShot, animHit, slowMo, heroLanding, superLaunch, NET, netHost, netJoin, netLeave, openOnline, netSetMode, netHostRace, netChat, GFX, updateGfx, rebuildGrass, toggleSentry, RACES, RACE, startRace, stopRace, WX, setWeather, PH, enterPhoto, exitPhoto, PX, planetExtras, canWarp, sky, updateEnv, updateEarthPlus, earthGround, earthH, earthWater, earthPlaces, adminTeleport, adminWarp, openAdminPanel, SITES, adminCommand, enableAdmin, disableAdmin, startStall, hurtPlayer, damageEnemy, bullets, PILOTS, BOT, spawnBot, removeBot, clearBots, updateBots, botHurt, hitList, syncPilotBody, BUILDS, frameBuild, buildRig, fullArmor, refreshArmor, rimRig, renderer, scene, camera, GradeShader, ATM, trails, popups, barrelRoll, airBrake, coreBurst, spawnFaller, vortices, trackVortex, WORLDS, setWorld, startWarp, openStarMap, worldGround, getWorld:() => WORLD_ID, PERF, sonicPulse, sonarPing, grabCar, throwHeld, repairSpray, carsNear, punchCars, colliders, hotCars, ventCoolant, startStall, crashRagdoll, damageBuilding, collapsing, startMontage, cracks, addCrack, isWater, cycleSuit, openCheat, closeCheat, openPanel, closePanel, unlockOP, frameAbility, superLaunch, tryGrab, cars, pillars, damagePillar, damageCar, swarmDrones, explode, hurtPlayer, callHeavy, punch, frameZones:() => frameZones, G, P, W, SUITS, step, launch, startMode, suitUp, callSuit, eject, toggleSentry, selfDestruct, toggleHelmet, toggleFace, detachPart, reassemble, selectSuit, runCommand, fireHand, fireMissiles, fireLasers, fireMinigun, dropFlares, spawnEnemy, enemies, eMissiles, keys, beginMission, setCam, BAY, PAD, toggleSupersonic, get suitHp() { return suitHp; } };
 })();
 </script>
 </body>
