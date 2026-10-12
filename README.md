@@ -34,3 +34,8 @@ to 20 requests a minute per visitor.
 Everyone starts with SPARROW. Eight people around the map (gold marker over their heads) give quests; each quest earns a frame,
 and better frames mean harder quests. Press G near someone to talk, minus (−) for the quest journal. The final frame, SINGULARITY,
 is won in a last battle over the city for Ada Wren at the Suit Library; its gauntlet starts empty, and each of the five shard powers is unlocked in its own trial. Admins (control-panel code) have every frame unlocked.
+
+## Offline play
+Open the site once with a connection. The menu then shows "offline ready" and the game runs with no internet from then on,
+including after closing the browser. You can also install it as an app (browser menu → Install / Add to Home Screen).
+Online multiplayer and the optional Claude backend still need a connection; the on-device AI works offline once its model has downloaded.

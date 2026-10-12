@@ -7,6 +7,19 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="description" content="Skywarden: an original 3D armored-flight sandbox.">
 <title>Skywarden</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<script>
+// offline play: install the service worker that keeps the game on this device
+if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol) && !/claude\.ai|claudeusercontent/.test(location.host)) {
+  addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').then(() => navigator.serviceWorker.ready).then(() => {
+      const t = document.getElementById('buildTag'); if (t && !/offline/.test(t.textContent)) t.textContent += ' · offline ready';
+    }).catch(() => {});
+  });
+}
+</script>
 <script>
 (function(){
   function show(msg){
@@ -391,7 +404,7 @@ details summary{cursor:pointer;color:var(--cyan);font-size:12px;letter-spacing:.
       <div class="cta">
         <button class="go chamfer" id="launch">LAUNCH</button>
         <button class="ghost" id="menuOnline" type="button">PLAY ONLINE · with friends</button>
-        <span class="label" id="buildTag" style="opacity:.7">Build 11 Oct 2026 · SHARD TRIALS</span>
+        <span class="label" id="buildTag" style="opacity:.7">Build 12 Oct 2026 · OFFLINE</span>
         <button class="ghost" id="creditsBtn">About &amp; credits</button>
         <button class="ghost" id="menuCheat">Controls</button>
         <button class="ghost touch-only" id="menuPanel">Control panel</button>
