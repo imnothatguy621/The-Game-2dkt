@@ -404,7 +404,7 @@ details summary{cursor:pointer;color:var(--cyan);font-size:12px;letter-spacing:.
       <div class="cta">
         <button class="go chamfer" id="launch">LAUNCH</button>
         <button class="ghost" id="menuOnline" type="button">PLAY ONLINE · with friends</button>
-        <span class="label" id="buildTag" style="opacity:.7">Build 13 Oct 2026 · EMAIL SIGN-IN</span>
+        <span class="label" id="buildTag" style="opacity:.7">Build 13 Oct 2026 · PILOT PROFILES</span>
         <button class="ghost" id="creditsBtn">About &amp; credits</button>
         <button class="ghost" id="menuCheat">Controls</button>
         <button class="ghost touch-only" id="menuPanel">Control panel</button>
@@ -4893,7 +4893,7 @@ function killEnemy(e) {
   const i = enemies.indexOf(e); if (i < 0) return;
   enemies.splice(i, 1); scene.remove(e.g);
   explode(e.pos, e.kind === 'warden' ? 4 : e.kind === 'heavy' ? 1.8 : 1, e.kind === 'heavy' ? 0xffa040 : 0xff5a3c);
-  G.score += e.T.score; G.combo = (G.combo || 0) + 1; G.comboT = 4; modOnKill(e);
+  G.score += e.T.score; G.combo = (G.combo || 0) + 1; G.comboT = 4; modOnKill(e); acctStat('kills', 1);
   scorePopup(e.pos, '+' + e.T.score + (G.combo >= 3 ? '  ×' + G.combo : ''), e.kind === 'drone' ? '#ffb547' : '#ff8a3a'); hitMarker(true);
   if (e.kind !== 'drone') G.hitStop = e.kind === 'warden' ? .25 : .07;
   G.kills.push(G.time); G.kills = G.kills.filter(t => G.time - t < 4);
@@ -11377,7 +11377,7 @@ function aiChat(raw) {
 }
 function aiCtx() {
   const s = AS(), site = (typeof SITES !== 'undefined' && WORLD_ID === 'earth') ? SITES.reduce((a, b) => Math.hypot(P.pos.x - a.x, P.pos.z - a.z) < Math.hypot(P.pos.x - b.x, P.pos.z - b.z) ? a : b) : null;
-  return { suit:s.name, mode:P.heavy ? 'GOLIATH' : P.mode, armor:Math.round((P.heavy ? P.heavyHp / HEAVY.hp : suitHp / SUIT().hp) * 100), power:Math.round(P.energy), altitude:Math.round(P.pos.y), speed:Math.round(P.vel.length()),
+  return { pilot:(typeof PROF !== 'undefined' && (PROF.first || PROF.username)) || null, likes:(typeof PROF !== 'undefined' && PROF.prefs.like) || null, frames:QS.owned.length, suit:s.name, mode:P.heavy ? 'GOLIATH' : P.mode, armor:Math.round((P.heavy ? P.heavyHp / HEAVY.hp : suitHp / SUIT().hp) * 100), power:Math.round(P.energy), altitude:Math.round(P.pos.y), speed:Math.round(P.vel.length()),
     world:WD().name, near:site ? site.name : null, hostiles:enemies.length, wave:G.wave, gameMode:G.mode, day:ENV.day, addons:modList().map(id => MOD_BY[id].name) };
 }
 function aiFallback(raw, t) { if (BRAIN.state === 'ready') brainReply(raw); else say(localReply(t), { prio:true }); }
@@ -11401,9 +11401,11 @@ const aiPick = a => a[(Math.random() * a.length) | 0];
 function localReply(t) {
   const has = (...w) => w.some(x => t.includes(x)), me = AI.name, s = AS();
   const pct = Math.round((P.heavy ? P.heavyHp / HEAVY.hp : suitHp / SUIT().hp) * 100);
-  if (/^(hi|hello|hey|good (morning|afternoon|evening)|evening|morning)\b/.test(t)) return aiPick([`Hello. ${me} here, at your service as ever.`, `Good to hear your voice. All systems are behaving, for once.`, `Hello, pilot. Shall we break something expensive today?`]);
+  const nm = typeof acctFirst === 'function' && acctFirst() ? ', ' + acctFirst() : '';
+  if (has('who am i', 'my name', 'whats my name', 'what is my name')) return typeof PROF !== 'undefined' && PROF.username ? `You are ${PROF.first || PROF.username}, callsign ${PROF.username}. ${QS.owned.length} frames and counting.` : 'You have not told me yet. Sign in with email and set up your pilot.';
+  if (/^(hi|hello|hey|good (morning|afternoon|evening)|evening|morning)\b/.test(t)) return aiPick([`Hello${nm}. ${me} here, at your service as ever.`, `Good to hear your voice. All systems are behaving, for once.`, `Hello, pilot. Shall we break something expensive today?`]);
   if (has('who are you', 'your name', 'what are you')) return `${me}. I run the suits, the drones, the forecasts and, on occasion, your social calendar. Purely original software, I'll have you know.`;
-  if (has('how are you', 'you ok', 'you alright')) return aiPick(['Splendid, thank you. Slightly overclocked, but splendid.', 'Very well. Better than the last drone that met you.', 'All processes nominal. Mood: cautiously optimistic.']);
+  if (has('how are you', 'you ok', 'you alright')) return aiPick([`Splendid, thank you${nm}. Slightly overclocked, but splendid.`, 'Very well. Better than the last drone that met you.', 'All processes nominal. Mood: cautiously optimistic.']);
   if (has('what can you do', 'help me', 'what do you do')) return 'Ask me to suit up, call the frame, spawn drones, change the weather, open add-ons, run a status report, or fly you to another world. Or just chat. I do enjoy a chat.';
   if (has('joke', 'funny', 'make me laugh')) return aiPick(['Why did the drone go to therapy? Too many unresolved targets.', 'I tried to write a joke about thrusters, but it never took off. Well, it did. Rather quickly.', 'Your last landing was so loud the seismographs filed a complaint.']);
   if (has('time')) return `It is ${new Date().toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' })}. ${ENV.day ? 'Broad daylight.' : 'Rather late, if you ask me.'}`;
@@ -11468,7 +11470,7 @@ async function brainLoad(quiet) {
 }
 function brainSystem() {
   return `You are ${AI.name}, the AI built into a flight suit in Skywarden, an original video game. You speak like a calm, witty British butler-engineer: dry humour, polite, British spelling. You are not any character from films or comics.
-Keep every reply to one or two short sentences, under 35 words, spoken aloud. Never use lists, emojis or stage directions. Address the player as pilot.
+Keep every reply to one or two short sentences, under 35 words, spoken aloud. Never use lists, emojis or stage directions. ${typeof acctFirst === 'function' && acctFirst() ? 'The player is called ' + acctFirst() + '; use their name now and then.' : 'Address the player as pilot.'}${typeof PROF !== 'undefined' && PROF.prefs.like ? ' They enjoy ' + LIKES[PROF.prefs.like] + '.' : ''} The player may be young, so keep everything friendly and suitable for all ages.
 Live game state: ${JSON.stringify(aiCtx())}.
 Things the pilot can do: press G to suit up, B to call the suit, U for the GOLIATH heavy shell, 8 for add-ons, 9 for the orbital lance, 4 for the star map, 5 for sky races, Enter to type commands. The Suit Library with every suit is by the Cliffhouse on the south coast. Redrock Canyon in the far west has a mining village.`;
 }
@@ -12300,7 +12302,7 @@ function completeQuest() {
   cleanQuest();
   if (A.type === 'shard') { if (!QS.shards.includes(A.shard)) QS.shards.push(A.shard); SHS.i = SH_LIST.indexOf(A.shard); banner(SHARDS[A.shard].name.toUpperCase() + ' AWAKENED', `${QS.shards.length} OF 5 SHARDS`); say(`Trial complete. The ${SHARDS[A.shard].name} is set in the gauntlet: ${SHARD_POWER[A.shard]} ${5 - QS.shards.length ? (5 - QS.shards.length) + ' trials left. Ada has the next one.' : 'The gauntlet is complete.'}`, { prio:true }); }
   else { const k = A.k; if (!QS.owned.includes(k)) QS.owned.push(k); banner('FRAME UNLOCKED', SUITS[k].code + ' · ' + SUITS[k].name); say(k === SING ? 'The city is safe and SINGULARITY is yours. Its gauntlet is empty. Ada has five trials, one for each shard.' : `Quest complete. ${SUITS[k].name} is yours. It is waiting in the Suit Library, or say its name to wear it now.`, { prio:true }); renderSuitCards($('suitCards')); }
-  G.score += 500 * (A.t + 1); qSave(); tone('sine', 520, 1040, .4, .06);
+  G.score += 500 * (A.t + 1); qSave(); if (typeof acctStat === 'function') acctStat('quests', 1); tone('sine', 520, 1040, .4, .06);
   if (typeof startShot === 'function') startShot('catch', 1);
 }
 function questTick(dt) {
@@ -12577,8 +12579,8 @@ const ACCT = { sb:null, user:null, ready:false, lastSaved:'', t:0, url:'https://
 const acctAllowed = () => typeof location !== 'undefined' && /^https?:$/.test(location.protocol) && !/claude\.ai|claudeusercontent/.test(location.host);
 function acctUI() {
   const u = ACCT.user, name = u ? (u.user_metadata && (u.user_metadata.full_name || u.user_metadata.name)) || u.email : '';
-  for (const id of ['menuLogin', 'pauseLogin']) { const b = $(id); if (!b) continue; b.hidden = !acctAllowed(); b.textContent = !ACCT.ready ? (navigator.onLine === false ? 'Sign in (needs internet)' : 'Sign in…') : u ? `Signed in as ${name} · sign out` : 'Sign in with email · save progress'; }
-  const t = $('acctTag'); if (t) { t.textContent = u ? `☁ Progress saved to ${name}'s account` : ''; t.hidden = !u; }
+  for (const id of ['menuLogin', 'pauseLogin']) { const b = $(id); if (!b) continue; b.hidden = !acctAllowed(); b.textContent = !ACCT.ready ? (navigator.onLine === false ? 'Sign in (needs internet)' : 'Sign in…') : u ? `Signed in as ${PROF.username || name} · sign out` : 'Sign in with email · save progress'; }
+  const t = $('acctTag'); if (t) { t.textContent = u ? `☁ ${PROF.username || name} · progress saved to your account` : ''; t.hidden = !u; }
 }
 {
   const mk = (id, cls) => { const b = document.createElement('button'); b.className = cls; b.id = id; b.type = 'button'; return b; };
@@ -12631,29 +12633,128 @@ function acctSignIn() {
   $('acctBox').hidden = false; $('acctMsg').textContent = 'We will email you a link. Click it and you are signed in, with your suits and quests saved to your account.';
   setTimeout(() => $('acctEmail').focus(), 50);
 }
-async function acctSignOut() { if (!ACCT.sb) return; await ACCT.sb.auth.signOut(); ACCT.user = null; acctUI(); say('Signed out. Progress stays on this device.', { prio:true }); }
+async function acctSignOut() { if (!ACCT.sb) return; await ACCT.sb.auth.signOut(); ACCT.user = null; PROF.loaded = false; PROF.username = PROF.first = ''; PROF.prefs = {}; acctUI(); say('Signed out. Progress stays on this device.', { prio:true }); }
 // what gets saved: earned frames, finished quests, shards, free-roam add-ons
 function acctLocal() { return { quests:{ owned:QS.owned.slice().sort((a, b) => a - b), done:QS.done.slice().sort(), shards:QS.shards.slice().sort() }, mods:(MODS && MODS.free || []).slice().sort() }; }
 const unionInto = (a, b) => { for (const x of b || []) if (!a.includes(x)) a.push(x); };
+// the pilot's profile: a public username, a private first name, preferences and lifetime stats
+const PROF = { username:'', first:'', prefs:{}, created:null, loaded:false };
+var STATS = { kills:0, km:0, top:0, mins:0, quests:0, sessions:0 };
+try { const s = JSON.parse(localStorage.getItem('sw_stats') || 'null'); if (s) Object.assign(STATS, s); } catch (e) {}
+const statSave = () => { try { localStorage.setItem('sw_stats', JSON.stringify(STATS)); } catch (e) {} };
+function acctStat(k, v) { if (k === 'top') STATS.top = Math.max(STATS.top, v); else STATS[k] = (STATS[k] || 0) + v; }
+const acctFirst = () => PROF.first || '';
+const LIKES = { flying:'flying fast', fighting:'a good fight', exploring:'exploring every corner of the map', suits:'collecting every suit' };
 async function acctPull() {
   const u = ACCT.user; if (!u || !ACCT.sb) return;
-  const { data, error } = await ACCT.sb.from('profiles').select('progress').eq('id', u.id).maybeSingle();
+  const { data, error } = await ACCT.sb.from('profiles').select('progress, username, first_name, prefs, stats, created_at').eq('id', u.id).maybeSingle();
   if (error) return;
   const p = data && data.progress || {};
   if (p.quests) { unionInto(QS.owned, p.quests.owned); unionInto(QS.done, p.quests.done); unionInto(QS.shards, p.quests.shards); qSave(); renderSuitCards($('suitCards')); }
   if (p.mods && MODS) { unionInto(MODS.free, p.mods.filter(id => MOD_BY[id])); modSave(); }
-  const name = (u.user_metadata && (u.user_metadata.full_name || u.user_metadata.name)) || '';
-  say(`Welcome back${name ? ', ' + name.split(' ')[0] : ''}. ${QS.owned.length} frames on your account.`, { prio:true });
-  ACCT.lastSaved = ''; acctPush();
+  if (data && data.stats) for (const k in data.stats) if (typeof data.stats[k] === 'number') STATS[k] = Math.max(STATS[k] || 0, data.stats[k]);
+  statSave();
+  PROF.username = data && data.username || ''; PROF.first = data && data.first_name || ''; PROF.prefs = data && data.prefs || {}; PROF.created = data && data.created_at || new Date().toISOString(); PROF.loaded = true;
+  if (!PROF.username) { profEdit(true); }
+  else { profApply(); say(`Welcome back, ${PROF.first || PROF.username}. ${QS.owned.length} of ${SUITS.length} frames on your account.`, { prio:true }); }
+  ACCT.lastSaved = ''; acctPush(); acctUI();
 }
 async function acctPush() {
-  const u = ACCT.user; if (!u || !ACCT.sb || navigator.onLine === false) return;
-  const prog = acctLocal(), js = JSON.stringify(prog); if (js === ACCT.lastSaved) return;
-  const md = u.user_metadata || {};
-  const { error } = await ACCT.sb.from('profiles').upsert({ id:u.id, display_name:md.full_name || md.name || null, avatar_url:md.avatar_url || md.picture || null, progress:prog, updated_at:new Date().toISOString() });
+  const u = ACCT.user; if (!u || !ACCT.sb || navigator.onLine === false || !PROF.loaded) return;
+  const prog = acctLocal(), js = JSON.stringify([prog, STATS, PROF.prefs]); if (js === ACCT.lastSaved) return;
+  const row = { id:u.id, progress:prog, stats:STATS, prefs:PROF.prefs, updated_at:new Date().toISOString() };
+  if (PROF.username) { row.username = PROF.username; row.display_name = PROF.username; }
+  if (PROF.first) row.first_name = PROF.first;
+  const { error } = await ACCT.sb.from('profiles').upsert(row);
   if (!error) ACCT.lastSaved = js;
 }
-function acctTick(dt) { ACCT.t -= dt; if (ACCT.t <= 0) { ACCT.t = 8; if (ACCT.user) acctPush(); } }
+// apply the profile: multiplayer callsign, chosen assistant
+function profApply() {
+  if (PROF.username && typeof NET !== 'undefined') { NET.name = PROF.username; try { localStorage.setItem('sw_name', PROF.username); } catch (e) {} }
+  const ai = PROF.prefs.ai; if (ai && AI.name !== ai) { const b = document.querySelector && document.querySelector(`[data-ai="${ai}"]`); if (b) b.click(); }
+  const t = $('acctTag'); if (t && ACCT.user) { t.hidden = false; t.textContent = `☁ ${PROF.username || 'Pilot'} · progress saved to your account`; }
+}
+// profile panel: first-time setup and editing
+{
+  const el = document.createElement('div'); el.id = 'profBox'; el.hidden = true;
+  el.style.cssText = 'position:fixed;inset:0;z-index:96;display:grid;place-items:center;background:rgba(3,7,11,.8);overflow:auto;padding:16px';
+  const inp = 'width:100%;box-sizing:border-box;padding:10px 12px;border-radius:10px;border:1px solid rgba(127,233,255,.4);background:rgba(6,14,22,.8);color:#e8fbff;font:500 15px Oxanium,system-ui,sans-serif';
+  el.innerHTML = `<form class="card chamfer" id="profForm" style="width:min(480px,94vw);text-align:left">
+    <h2 style="font-size:20px;margin:0 0 4px" id="profTitle">Create your pilot</h2>
+    <p class="hint" style="margin:0 0 12px">This is how the game will know you.</p>
+    <label class="label" for="profUser">Username · shown to other players</label>
+    <input id="profUser" required maxlength="16" pattern="[A-Za-z0-9_]{3,16}" autocomplete="off" placeholder="e.g. SkyAce_07" style="${inp};margin:4px 0 2px">
+    <p class="hint" style="margin:0 0 10px;font-size:11px">3 to 16 letters, numbers or _. Don't use your real name here.</p>
+    <label class="label" for="profFirst">Your first name · private</label>
+    <input id="profFirst" maxlength="30" autocomplete="given-name" placeholder="First name only" style="${inp};margin:4px 0 2px">
+    <p class="hint" style="margin:0 0 10px;font-size:11px">Only your AI assistant uses it, to talk to you. It is never shown to other players. You can leave it blank.</p>
+    <label class="label">Your assistant</label>
+    <div class="cta" id="profAi" style="margin:4px 0 10px"><button class="ghost" type="button" data-pai="ORIN">ORIN · calm</button><button class="ghost" type="button" data-pai="VELA">VELA · quick</button></div>
+    <label class="label">What do you enjoy most?</label>
+    <div class="cta" id="profLike" style="margin:4px 0 12px;flex-wrap:wrap"><button class="ghost" type="button" data-like="flying">Flying fast</button><button class="ghost" type="button" data-like="fighting">Fighting</button><button class="ghost" type="button" data-like="exploring">Exploring</button><button class="ghost" type="button" data-like="suits">Collecting suits</button></div>
+    <p class="hint" id="profMsg" style="margin:0 0 10px;min-height:1em"></p>
+    <div class="cta"><button class="go chamfer" type="submit" id="profSave">SAVE PILOT</button><button class="ghost" type="button" id="profCancel">Later</button></div></form>`;
+  ($('app') || document.body).appendChild(el);
+  el.addEventListener('keydown', e => e.stopPropagation(), true);
+  const pick = (attr, val) => el.querySelectorAll(`[data-${attr}]`).forEach(b => b.setAttribute('aria-pressed', b.dataset[attr === 'pai' ? 'pai' : 'like'] === val));
+  el.addEventListener('click', e => { const a = e.target.closest('[data-pai]'), l = e.target.closest('[data-like]'); if (a) { PROF._ai = a.dataset.pai; pick('pai', PROF._ai); } if (l) { PROF._like = l.dataset.like; pick('like', PROF._like); } });
+  $('profCancel').addEventListener('click', () => { el.hidden = true; });
+  $('profForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const user = $('profUser').value.trim(), first = $('profFirst').value.trim().replace(/[^\p{L} '\-]/gu, '').slice(0, 30);
+    if (!/^[A-Za-z0-9_]{3,16}$/.test(user)) { $('profMsg').textContent = 'Usernames are 3 to 16 letters, numbers or _.'; return; }
+    $('profSave').disabled = true; $('profMsg').textContent = 'Checking that name…';
+    const { data:free, error } = await ACCT.sb.rpc('username_available', { name:user });
+    if (error || !free) { $('profSave').disabled = false; $('profMsg').textContent = error ? 'Could not check the name. Try again.' : `"${user}" is taken. Try another.`; return; }
+    PROF.username = user; PROF.first = first; PROF.prefs = Object.assign({}, PROF.prefs, { ai:PROF._ai || PROF.prefs.ai || AI.name, like:PROF._like || PROF.prefs.like || '' });
+    ACCT.lastSaved = ''; await acctPush();
+    $('profSave').disabled = false;
+    if (ACCT.lastSaved === '') { $('profMsg').textContent = 'That name was just taken. Try another.'; PROF.username = ''; return; }
+    el.hidden = true; profApply(); acctUI();
+    say(`Nice to meet you${first ? ', ' + first : ''}. Callsign ${user} is registered. ${PROF.prefs.like ? 'I hear you like ' + LIKES[PROF.prefs.like] + '. I will keep that in mind.' : ''}`, { prio:true });
+  });
+}
+function profEdit(first) {
+  const el = $('profBox'); if (!el || !ACCT.user) return;
+  if (G.state === 'play') pause();
+  $('profTitle').textContent = first ? 'Create your pilot' : 'Edit your pilot';
+  $('profUser').value = PROF.username; $('profFirst').value = PROF.first; $('profMsg').textContent = '';
+  PROF._ai = PROF.prefs.ai || AI.name; PROF._like = PROF.prefs.like || '';
+  el.querySelectorAll('[data-pai]').forEach(b => b.setAttribute('aria-pressed', b.dataset.pai === PROF._ai));
+  el.querySelectorAll('[data-like]').forEach(b => b.setAttribute('aria-pressed', b.dataset.like === PROF._like));
+  el.hidden = false; setTimeout(() => $('profUser').focus(), 50);
+}
+// pilot card: who you are and what you have done
+function profCard() {
+  if (G.state === 'play') pause();
+  const since = PROF.created ? new Date(PROF.created).toLocaleDateString([], { day:'numeric', month:'short', year:'numeric' }) : 'today';
+  const nextN = QNPC.find(n => npcNext(n)), nx = nextN && npcNext(nextN);
+  $('qpName').textContent = PROF.username || (ACCT.user ? 'Pilot' : 'Guest pilot');
+  $('qpRole').textContent = ACCT.user ? `${PROF.first ? PROF.first + ' · ' : ''}pilot since ${since} · assistant ${AI.name}` : 'Not signed in · progress saved on this device only';
+  $('qpText').textContent = nx ? `Next up: ${qTitle(nx)} for ${nextN.name}${typeof nx[0] === 'number' ? ', reward ' + SUITS[nx[0]].name : ''}.` : 'Every quest is done. Legendary work.';
+  const row = (a, b) => `<div class="opt"><strong>${a}</strong><span>${b}</span></div>`;
+  $('qpOpts').innerHTML = row('Frames earned', `${QS.owned.length} of ${SUITS.length}`) + row('Quests completed', QS.done.length) + row('Gauntlet shards', `${QS.shards.length} of 5`)
+    + row('Drones destroyed', Math.round(STATS.kills)) + row('Distance flown', `${STATS.km.toFixed(1)} km`) + row('Top speed', `${Math.round(STATS.top)} m/s`) + row('Time in the air', `${Math.round(STATS.mins)} minutes`)
+    + (ACCT.user ? '<button class="opt" data-q="editprof"><strong>Edit pilot</strong><span>Username, first name, assistant, favourites</span></button>' : '<button class="opt" data-q="signin"><strong>Sign in with email</strong><span>Save all this to an account</span></button>');
+  QS.talk = null; showScreen('qpanel'); $('hud').hidden = false;
+}
+$('qpanel').addEventListener('click', e => { const b = e.target.closest('[data-q]'); if (!b || (b.dataset.q !== 'editprof' && b.dataset.q !== 'signin')) return; e.stopImmediatePropagation(); resume(); if (b.dataset.q === 'editprof') profEdit(false); else acctSignIn(); }, true);
+{ const b = document.createElement('button'); b.className = 'ghost'; b.id = 'pauseProfile'; b.type = 'button'; b.textContent = 'Pilot profile'; const a = $('pauseQuests'); if (a && a.parentNode) a.parentNode.insertBefore(b, a); b.addEventListener('click', () => { resume(); profCard(); }); }
+// a personal hello when you start flying, with a nudge that fits what you enjoy
+function profGreet() {
+  const n = acctFirst() || PROF.username, h = new Date().getHours(), tod = h < 5 ? 'Up late' : h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
+  const nextN = QNPC.filter(q => npcNext(q)).sort((a, b) => a.pos.distanceTo(P.pos) - b.pos.distanceTo(P.pos))[0];
+  const like = PROF.prefs.like, tip = like === 'flying' ? 'Dex at the race track has a speed trial with your name on it.' : like === 'fighting' ? 'Say drones and I will find you something to shoot.' : like === 'exploring' ? 'Redrock Canyon in the far west has a mine worth a look.' : like === 'suits' ? `${SUITS.length - QS.owned.length} frames still to collect.` : '';
+  say(`${tod}${n ? ', ' + n : ''}. ${QS.owned.length} frames, ${QS.done.length} quests done. ${tip || (nextN ? nextN.name + ' has work for you.' : '')}`, { prio:true });
+}
+function acctTick(dt) {
+  if (G.state === 'play') {
+    STATS.mins += dt / 60;
+    if (P.mode === 'suited' || P.heavy) { const v = P.vel.length(); STATS.km += v * dt / 1000; if (v > STATS.top) STATS.top = v; }
+    if (!ACCT.greeted && PROF.loaded && ACCT.user) { ACCT.greeted = true; STATS.sessions++; setTimeout(profGreet, 2500); }
+  }
+  ACCT.t -= dt; if (ACCT.t <= 0) { ACCT.t = 8; statSave(); if (ACCT.user) acctPush(); }
+}
 if (acctAllowed() && typeof navigator !== 'undefined' && !navigator.webdriver) setTimeout(acctInit, 1500);
 typeof addEventListener === 'function' && addEventListener('online', () => { if (!ACCT.sb) acctInit(); acctUI(); });
 
@@ -12758,7 +12859,7 @@ window.__SW_updateGadgets = updateGadgets; window.__SW_inside = (p) => insideBui
 $('pauseStar').addEventListener('click', () => { resume(); openStarMap(); });
 $('pauseRace').addEventListener('click', () => { resume(); openRaces(); });
 $('pausePhoto').addEventListener('click', () => { resume(); enterPhoto(); });
-window.__SW = { ACCT, acctInit, SEAS, killEnemy, instantSuit, resume, QS, QNPC, SING, startQuest, completeQuest, talkTo, openJournal, shardUse, suitOwned, questTick, BRAIN, brainLoad, LIB, CINE, FIRE, DET, startCine, endCine, libWear, libBuildOne, aiChat, localReply, fireLance, bakeBotRig, MODS, MOD_DEFS, modPartLost, modOffer, openMods, modPick, modK, HV, heavySlam, rocketFist, buildHeavyRig, SOL, solArrive, enterSol, solBody, updateGfx2, GFX2, composer, bloomPass, WP, earthBiome, RES, startRescue, catchSuit, eject, AR, punch, AN, SHOT, startShot, animHit, slowMo, heroLanding, superLaunch, NET, netHost, netJoin, netLeave, openOnline, netSetMode, netHostRace, netChat, GFX, updateGfx, rebuildGrass, toggleSentry, RACES, RACE, startRace, stopRace, WX, setWeather, PH, enterPhoto, exitPhoto, PX, planetExtras, canWarp, sky, updateEnv, updateEarthPlus, earthGround, earthH, earthWater, earthPlaces, adminTeleport, adminWarp, openAdminPanel, SITES, adminCommand, enableAdmin, disableAdmin, startStall, hurtPlayer, damageEnemy, bullets, PILOTS, BOT, spawnBot, removeBot, clearBots, updateBots, botHurt, hitList, syncPilotBody, BUILDS, frameBuild, buildRig, fullArmor, refreshArmor, rimRig, renderer, scene, camera, GradeShader, ATM, trails, popups, barrelRoll, airBrake, coreBurst, spawnFaller, vortices, trackVortex, WORLDS, setWorld, startWarp, openStarMap, worldGround, getWorld:() => WORLD_ID, PERF, sonicPulse, sonarPing, grabCar, throwHeld, repairSpray, carsNear, punchCars, colliders, hotCars, ventCoolant, startStall, crashRagdoll, damageBuilding, collapsing, startMontage, cracks, addCrack, isWater, cycleSuit, openCheat, closeCheat, openPanel, closePanel, unlockOP, frameAbility, superLaunch, tryGrab, cars, pillars, damagePillar, damageCar, swarmDrones, explode, hurtPlayer, callHeavy, punch, frameZones:() => frameZones, G, P, W, SUITS, step, launch, startMode, suitUp, callSuit, eject, toggleSentry, selfDestruct, toggleHelmet, toggleFace, detachPart, reassemble, selectSuit, runCommand, fireHand, fireMissiles, fireLasers, fireMinigun, dropFlares, spawnEnemy, enemies, eMissiles, keys, beginMission, setCam, BAY, PAD, toggleSupersonic, get suitHp() { return suitHp; } };
+window.__SW = { PROF, STATS, profEdit, profCard, profGreet, ACCT, acctInit, SEAS, killEnemy, instantSuit, resume, QS, QNPC, SING, startQuest, completeQuest, talkTo, openJournal, shardUse, suitOwned, questTick, BRAIN, brainLoad, LIB, CINE, FIRE, DET, startCine, endCine, libWear, libBuildOne, aiChat, localReply, fireLance, bakeBotRig, MODS, MOD_DEFS, modPartLost, modOffer, openMods, modPick, modK, HV, heavySlam, rocketFist, buildHeavyRig, SOL, solArrive, enterSol, solBody, updateGfx2, GFX2, composer, bloomPass, WP, earthBiome, RES, startRescue, catchSuit, eject, AR, punch, AN, SHOT, startShot, animHit, slowMo, heroLanding, superLaunch, NET, netHost, netJoin, netLeave, openOnline, netSetMode, netHostRace, netChat, GFX, updateGfx, rebuildGrass, toggleSentry, RACES, RACE, startRace, stopRace, WX, setWeather, PH, enterPhoto, exitPhoto, PX, planetExtras, canWarp, sky, updateEnv, updateEarthPlus, earthGround, earthH, earthWater, earthPlaces, adminTeleport, adminWarp, openAdminPanel, SITES, adminCommand, enableAdmin, disableAdmin, startStall, hurtPlayer, damageEnemy, bullets, PILOTS, BOT, spawnBot, removeBot, clearBots, updateBots, botHurt, hitList, syncPilotBody, BUILDS, frameBuild, buildRig, fullArmor, refreshArmor, rimRig, renderer, scene, camera, GradeShader, ATM, trails, popups, barrelRoll, airBrake, coreBurst, spawnFaller, vortices, trackVortex, WORLDS, setWorld, startWarp, openStarMap, worldGround, getWorld:() => WORLD_ID, PERF, sonicPulse, sonarPing, grabCar, throwHeld, repairSpray, carsNear, punchCars, colliders, hotCars, ventCoolant, startStall, crashRagdoll, damageBuilding, collapsing, startMontage, cracks, addCrack, isWater, cycleSuit, openCheat, closeCheat, openPanel, closePanel, unlockOP, frameAbility, superLaunch, tryGrab, cars, pillars, damagePillar, damageCar, swarmDrones, explode, hurtPlayer, callHeavy, punch, frameZones:() => frameZones, G, P, W, SUITS, step, launch, startMode, suitUp, callSuit, eject, toggleSentry, selfDestruct, toggleHelmet, toggleFace, detachPart, reassemble, selectSuit, runCommand, fireHand, fireMissiles, fireLasers, fireMinigun, dropFlares, spawnEnemy, enemies, eMissiles, keys, beginMission, setCam, BAY, PAD, toggleSupersonic, get suitHp() { return suitHp; } };
 })();
 </script>
 </body>
