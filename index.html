@@ -404,7 +404,7 @@ details summary{cursor:pointer;color:var(--cyan);font-size:12px;letter-spacing:.
       <div class="cta">
         <button class="go chamfer" id="launch">LAUNCH</button>
         <button class="ghost" id="menuOnline" type="button">PLAY ONLINE · with friends</button>
-        <span class="label" id="buildTag" style="opacity:.7">Build 12 Oct 2026 · ACCOUNTS</span>
+        <span class="label" id="buildTag" style="opacity:.7">Build 13 Oct 2026 · EMAIL SIGN-IN</span>
         <button class="ghost" id="creditsBtn">About &amp; credits</button>
         <button class="ghost" id="menuCheat">Controls</button>
         <button class="ghost touch-only" id="menuPanel">Control panel</button>
@@ -12577,7 +12577,7 @@ const ACCT = { sb:null, user:null, ready:false, lastSaved:'', t:0, url:'https://
 const acctAllowed = () => typeof location !== 'undefined' && /^https?:$/.test(location.protocol) && !/claude\.ai|claudeusercontent/.test(location.host);
 function acctUI() {
   const u = ACCT.user, name = u ? (u.user_metadata && (u.user_metadata.full_name || u.user_metadata.name)) || u.email : '';
-  for (const id of ['menuLogin', 'pauseLogin']) { const b = $(id); if (!b) continue; b.hidden = !acctAllowed(); b.textContent = !ACCT.ready ? (navigator.onLine === false ? 'Sign in (needs internet)' : 'Sign in with Google…') : u ? `Signed in as ${name} · sign out` : 'Sign in with Google · save progress'; }
+  for (const id of ['menuLogin', 'pauseLogin']) { const b = $(id); if (!b) continue; b.hidden = !acctAllowed(); b.textContent = !ACCT.ready ? (navigator.onLine === false ? 'Sign in (needs internet)' : 'Sign in…') : u ? `Signed in as ${name} · sign out` : 'Sign in with email · save progress'; }
   const t = $('acctTag'); if (t) { t.textContent = u ? `☁ Progress saved to ${name}'s account` : ''; t.hidden = !u; }
 }
 {
@@ -12604,10 +12604,32 @@ function acctInit() {
   s.onerror = () => { ACCT.ready = false; acctUI(); };
   document.head.appendChild(s);
 }
-async function acctSignIn() {
+// email sign-in: the player types an address and gets a one-click link; no password to remember
+{
+  const el = document.createElement('div'); el.id = 'acctBox'; el.hidden = true;
+  el.style.cssText = 'position:fixed;inset:0;z-index:95;display:grid;place-items:center;background:rgba(3,7,11,.72)';
+  el.innerHTML = `<form class="card chamfer" id="acctForm" style="width:min(440px,92vw);text-align:left">
+    <h2 style="font-size:20px;margin:0 0 6px">Sign in with email</h2>
+    <p class="hint" id="acctMsg" style="margin:0 0 12px">We will email you a link. Click it and you are signed in, with your suits and quests saved to your account.</p>
+    <input id="acctEmail" type="email" required autocomplete="email" placeholder="you@example.com" aria-label="Email address" style="width:100%;box-sizing:border-box;padding:10px 12px;border-radius:10px;border:1px solid rgba(127,233,255,.4);background:rgba(6,14,22,.8);color:#e8fbff;font:500 15px Oxanium,system-ui,sans-serif">
+    <div class="cta" style="margin-top:12px"><button class="go chamfer" type="submit" id="acctSend">SEND LINK</button><button class="ghost" type="button" id="acctCancel">Cancel</button></div></form>`;
+  ($('app') || document.body).appendChild(el);
+  el.addEventListener('keydown', e => e.stopPropagation(), true);
+  $('acctCancel').addEventListener('click', () => { el.hidden = true; });
+  el.addEventListener('click', e => { if (e.target === el) el.hidden = true; });
+  $('acctForm').addEventListener('submit', async e => {
+    e.preventDefault(); const email = $('acctEmail').value.trim(); if (!email || !ACCT.sb) return;
+    $('acctSend').disabled = true; $('acctMsg').textContent = 'Sending…';
+    const { error } = await ACCT.sb.auth.signInWithOtp({ email, options:{ emailRedirectTo:location.origin + location.pathname, shouldCreateUser:true } });
+    $('acctSend').disabled = false;
+    $('acctMsg').textContent = error ? (/rate|too many/i.test(error.message) ? 'Too many sign-in emails right now. Wait a few minutes and try again.' : 'Could not send the link: ' + error.message) : `Link sent to ${email}. Open the email and click the link; it brings you back here signed in. (Check spam if it is not there in a minute.)`;
+  });
+}
+function acctSignIn() {
   if (!ACCT.sb) return;
-  const { error } = await ACCT.sb.auth.signInWithOAuth({ provider:'google', options:{ redirectTo:location.origin + location.pathname } });
-  if (error) { say('Google sign-in is not available right now: ' + error.message, { prio:true }); if ($('acctTag')) { $('acctTag').hidden = false; $('acctTag').textContent = 'Sign-in failed: ' + error.message; } }
+  if (G.state === 'play') pause && pause();
+  $('acctBox').hidden = false; $('acctMsg').textContent = 'We will email you a link. Click it and you are signed in, with your suits and quests saved to your account.';
+  setTimeout(() => $('acctEmail').focus(), 50);
 }
 async function acctSignOut() { if (!ACCT.sb) return; await ACCT.sb.auth.signOut(); ACCT.user = null; acctUI(); say('Signed out. Progress stays on this device.', { prio:true }); }
 // what gets saved: earned frames, finished quests, shards, free-roam add-ons

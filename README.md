@@ -40,8 +40,8 @@ Open the site once with a connection. The menu then shows "offline ready" and th
 including after closing the browser. You can also install it as an app (browser menu → Install / Add to Home Screen).
 Online multiplayer and the optional Claude backend still need a connection; the on-device AI works offline once its model has downloaded.
 
-## Accounts (Google sign-in via Supabase)
-"Sign in with Google" on the menu and pause screen saves earned frames, quests, shards and add-ons to a `profiles` table
+## Accounts (email sign-in via Supabase)
+"Sign in with email" (a one-click link) on the menu and pause screen saves earned frames, quests, shards and add-ons to a `profiles` table
 in Supabase (row-level security: each player can only read and write their own row). Progress from the device and the account
 are merged on sign-in. Google must be enabled under Supabase → Authentication → Sign In / Providers, with
 https://the-game-2kdt.vercel.app set as the Site URL and allowed redirect.
