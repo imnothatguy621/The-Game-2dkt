@@ -404,7 +404,7 @@ details summary{cursor:pointer;color:var(--cyan);font-size:12px;letter-spacing:.
       <div class="cta">
         <button class="go chamfer" id="launch">LAUNCH</button>
         <button class="ghost" id="menuOnline" type="button">PLAY ONLINE · with friends</button>
-        <span class="label" id="buildTag" style="opacity:.7">Build 13 Oct 2026 · PILOT PROFILES</span>
+        <span class="label" id="buildTag" style="opacity:.7">Build 13 Oct 2026 · COMMANDER</span>
         <button class="ghost" id="creditsBtn">About &amp; credits</button>
         <button class="ghost" id="menuCheat">Controls</button>
         <button class="ghost touch-only" id="menuPanel">Control panel</button>
@@ -6179,7 +6179,7 @@ function drawHud() {
   if (helmetHud) { drawHelmetHud(col); drawHelmetLoadout(col); }
   if (G.cam === 'first' && P.mode === 'suited') drawVisorFx();
   hx.font = '10px "IBM Plex Mono", monospace'; hx.textAlign = 'center';
-  drawBots(); drawAdminTag(); drawSkyLabels(); drawRaceHud(); netDraw(); solDraw(); drawModHud(); drawQuestHud();
+  drawBots(); drawAdminTag(); drawSkyLabels(); drawRaceHud(); netDraw(); solDraw(); drawModHud(); drawQuestHud(); crHud(); saHud();
   // enemies
   const range = G.sonar > 0 ? 1400 : G.scanT > 0 ? 650 : 280;
   for (const e of enemies) {
@@ -8736,8 +8736,8 @@ window.addEventListener('keydown', e => {
   if (!$('rpanel').hidden) { if (e.code === 'Escape' || e.code === 'Digit5') { e.preventDefault(); e.stopImmediatePropagation(); resume(); } return; }
   if (G.chatOpen || G.state !== 'play' || e.repeat) return;
   if (e.code === 'KeyF') { e.preventDefault(); e.stopImmediatePropagation(); enterPhoto(); }
-  else if (e.code === 'Digit5') { e.preventDefault(); e.stopImmediatePropagation(); openRaces(); }
-  else if (e.code === 'Digit6') { e.preventDefault(); e.stopImmediatePropagation(); cycleWeather(); }
+  else if (e.code === 'Digit5' && !(e.shiftKey && typeof SA !== 'undefined' && SA.on)) { e.preventDefault(); e.stopImmediatePropagation(); openRaces(); }
+  else if (e.code === 'Digit6' && !(e.shiftKey && typeof SA !== 'undefined' && SA.on)) { e.preventDefault(); e.stopImmediatePropagation(); cycleWeather(); }
 }, true);
 
 /* ================= Graphics upgrade: ocean, clouds, flames, terrain detail, grass, shadows ================= */
@@ -10794,7 +10794,7 @@ try { const s = JSON.parse(localStorage.getItem('sw_mods') || '[]'); if (Array.i
 const modSave = () => { try { localStorage.setItem('sw_mods', JSON.stringify(MODS.free)); } catch (e) {} };
 const modList = () => (G.mode === 'combat' ? MODS.earned : MODS.free);
 const modOn = id => !!MODS && modList().includes(id);
-function modK(kind) { if (!MODS) return 1; let k = 1; for (const id of modList()) { const d = MOD_BY[id]; if (d && d.k && d.k[kind]) k *= d.k[kind]; } return k; }
+function modK(kind) { if (!MODS) return 1; let k = 1; for (const id of modList()) { const d = MOD_BY[id]; if (d && d.k && d.k[kind]) k *= d.k[kind]; } if (typeof SA !== 'undefined' && SA.titan) k *= ({ wpn:3, arm:.1, thr:1.7 })[kind] || 1; return k; }
 function modHudLabel() { if (!MODS) return 'Add-ons'; const n = modList().length; return n ? `Add-ons · ${n} fitted` : 'Add-ons'; }
 
 /* ---------- the supply drone ---------- */
@@ -10940,7 +10940,7 @@ function modApply(force) {
 }
 function modTick(dt) {
   if (!MODS) return;
-  droneTick(dt);
+  droneTick(dt); crTick();
   if (G.state !== 'play') return;
   MODS.nt -= dt; if (MODS.nt <= 0) { MODS.nt = .5; modApply(false); }
   const L = modList(); if (!L.length) return;
@@ -10987,10 +10987,12 @@ function openMods(offer) {
     $('mpList').innerHTML = MOD_DEFS.map(d => `<div class="opt" style="opacity:${L.includes(d.id) ? 1 : .4}"><strong>${L.includes(d.id) ? '✓ ' : ''}${d.name}</strong><span>${d.sub}</span></div>`).join('');
   } else {
     $('mpTitle').textContent = 'ADD-ON WORKSHOP';
-    $('mpHint').textContent = `Free roam: everything is free. Tap to fit or remove. ${ai} sends a drone with each new part. Fits every suit, GOLIATH included.`;
-    const row = d => `<button class="opt" data-mod="${d.id}" aria-pressed="${L.includes(d.id)}"><strong>${L.includes(d.id) ? '✓ ' : '+ '}${d.name}</strong><span>${d.sub}${L.includes(d.id) ? ' · fitted, tap to remove' : ''}</span></button>`;
+    const bal = crFree() ? '∞' : CR.bal.toLocaleString();
+    $('mpHint').textContent = `Credits: ${bal}. Earn credits by destroying drones, flying through rings and finishing quests. Buy an add-on once, then fit or remove it whenever you like. ${ai} sends a drone with each new part.`;
+    const row = d => { const own = modOwned(d.id), fit = L.includes(d.id), price = modPrice(d.id), afford = crFree() || CR.bal >= price;
+      return `<button class="opt" data-mod="${d.id}" aria-pressed="${fit}"${!own && !afford ? ' style="opacity:.55"' : ''}><strong>${fit ? '✓ ' : own ? '+ ' : '🔒 '}${d.name}${own ? '' : ` · ${crFree() ? 'free (admin)' : price.toLocaleString() + ' credits'}`}</strong><span>${d.sub}${fit ? ' · fitted, tap to remove' : own ? ' · owned, tap to fit' : afford ? ' · tap to buy' : ` · need ${(price - CR.bal).toLocaleString()} more credits`}</span></button>`; };
     $('mpList').innerHTML = '<p class="label" style="margin:6px 0 0">SIGNATURE</p>' + MOD_DEFS.filter(d => d.sig).map(row).join('') + '<p class="label" style="margin:10px 0 0">TUNING</p>' + MOD_DEFS.filter(d => !d.sig).map(row).join('')
-      + `<button class="opt" data-mod="__all"><strong>Fit everything</strong><span>One drone run with the full kit</span></button>`;
+      + `<button class="opt" data-mod="__all"><strong>Fit everything I own</strong><span>One drone run with every add-on you have bought</span></button>`;
   }
   showScreen('mpanel'); $('hud').hidden = false;
 }
@@ -11004,9 +11006,9 @@ function modPick(id) {
   }
   if (G.mode === 'combat') return;
   if (id === '__all') {
-    const add = MOD_DEFS.map(d => d.id).filter(x => !MODS.free.includes(x));
+    const add = MOD_DEFS.map(d => d.id).filter(x => !MODS.free.includes(x) && modOwned(x));
     resume();
-    if (!add.length) { say('Already carrying the full kit.', { prio:true }); return; }
+    if (!add.length) { say('Everything you own is already fitted.', { prio:true }); return; }
     for (const x of add.slice(0, -1)) MODS.free.push(x);
     MODS.drops.push({ kind:'mod', id:add[add.length - 1], list:MODS.free, wait:.4 });
     say('Full kit coming up. Drone on its way.', { prio:true });
@@ -11015,6 +11017,13 @@ function modPick(id) {
   const i = MODS.free.indexOf(id);
   if (i >= 0) { MODS.free.splice(i, 1); modSave(); modApply(true); openModsRefresh(); say(`${MOD_BY[id].name} removed.`, { key:'modrm', cd:1 }); return; }
   if (MODS.drops.some(j => j.kind === 'mod' && j.id === id)) return;
+  if (!modOwned(id)) {
+    const price = modPrice(id);
+    if (!crFree() && CR.bal < price) { say(`${MOD_BY[id].name} costs ${price.toLocaleString()} credits. You have ${CR.bal.toLocaleString()}. Destroy drones and finish quests to earn more.`, { key:'modcost', cd:2, prio:true }); return; }
+    if (!crFree()) CR.bal -= price;
+    CR.bought.push(id); crSave(); tone('sine', 880, 1320, .15, .05);
+    say(`${MOD_BY[id].name} bought${crFree() ? '' : ' for ' + price.toLocaleString() + ' credits'}.`, { key:'modbuy', cd:1 });
+  }
   MODS.drops.push({ kind:'mod', id, list:MODS.free, wait:.4 });
   resume();
   say(`${MOD_BY[id].name} coming up. Drone on its way.`, { prio:true });
@@ -11038,6 +11047,25 @@ window.addEventListener('keydown', e => {
 }, true);
 $('pauseMods') && $('pauseMods').addEventListener('click', () => { resume(); openMods(null); });
 
+/* ---------- credits: earned in play, spent on add-ons ---------- */
+var CR = { bal:0, bought:[], lastScore:0, frac:0 };
+try { const c = JSON.parse(localStorage.getItem('sw_credits') || 'null'); if (c) { CR.bal = c.bal | 0; CR.bought = Array.isArray(c.bought) ? c.bought : []; } else if (MODS && MODS.free.length) CR.bought = MODS.free.slice(); } catch (e) {}
+var crSave = () => { try { localStorage.setItem('sw_credits', JSON.stringify({ bal:CR.bal, bought:CR.bought })); } catch (e) {} };
+const MOD_PRICES = { plating:600, thrusters:500, repulsors:700, cells:450, nanites:800, rack:550, sinks:400, wing:1800, arc:1500, cluster:1400, lance:3000, meteor:1200, decoy:1300, overdrive:2200, aegis:2500 };
+function modPrice(id) { return MOD_PRICES[id] || 1000; }
+function crFree() { return (typeof isAdminQ === 'function' && isAdminQ()) || (typeof SA !== 'undefined' && SA.on); }
+function modOwned(id) { return crFree() || CR.bought.includes(id); }
+function crTick() {
+  // a tenth of every point you score becomes credits
+  if (G.score < CR.lastScore) CR.lastScore = G.score;
+  const d = G.score - CR.lastScore; if (d > 0) { CR.frac += d / 10; const w = Math.floor(CR.frac); CR.frac -= w; CR.bal += w; CR.lastScore = G.score; if (w) crSave(); }
+}
+function crHud() {
+  if (G.state !== 'play') return;
+  hx.save(); hx.textAlign = 'right'; hx.font = '600 12px Oxanium, sans-serif'; hx.fillStyle = '#ffc83a';
+  hx.fillText(`◈ ${crFree() ? '∞' : CR.bal.toLocaleString()} credits`, innerWidth - 18, 26); hx.restore();
+}
+
 /* ================= Signature add-ons: things you can see and feel, not just numbers ================= */
 const SIG_DEFS = [
   { id:'wing',      sig:true, name:'Twin sentinels',     sub:'Two attack drones fly beside you and shoot what you shoot' },
@@ -11051,6 +11079,7 @@ const SIG_DEFS = [
 ];
 for (const d of SIG_DEFS) { MOD_DEFS.unshift(d); MOD_BY[d.id] = d; }
 try { const s = JSON.parse(localStorage.getItem('sw_mods') || '[]'); if (Array.isArray(s)) MODS.free = s.filter(id => MOD_BY[id]); } catch (e) {}
+try { if (!localStorage.getItem('sw_credits')) { CR.bought = MODS.free.slice(); crSave(); } } catch (e) {}
 Object.assign(MODS, { wing:null, arcs:[], bomblets:[], lance:null, lanceCD:0, decoy:null, od:0, aegisCD:0, wasGround:true, vy:0, rollWas:0, arcCD:0 });
 
 const fxV = new V3(), fxV2 = new V3(), fxV3 = new V3();
@@ -12635,7 +12664,7 @@ function acctSignIn() {
 }
 async function acctSignOut() { if (!ACCT.sb) return; await ACCT.sb.auth.signOut(); ACCT.user = null; PROF.loaded = false; PROF.username = PROF.first = ''; PROF.prefs = {}; acctUI(); say('Signed out. Progress stays on this device.', { prio:true }); }
 // what gets saved: earned frames, finished quests, shards, free-roam add-ons
-function acctLocal() { return { quests:{ owned:QS.owned.slice().sort((a, b) => a - b), done:QS.done.slice().sort(), shards:QS.shards.slice().sort() }, mods:(MODS && MODS.free || []).slice().sort() }; }
+function acctLocal() { return { quests:{ owned:QS.owned.slice().sort((a, b) => a - b), done:QS.done.slice().sort(), shards:QS.shards.slice().sort() }, mods:(MODS && MODS.free || []).slice().sort(), credits:{ bal:CR.bal, bought:CR.bought.slice().sort() } }; }
 const unionInto = (a, b) => { for (const x of b || []) if (!a.includes(x)) a.push(x); };
 // the pilot's profile: a public username, a private first name, preferences and lifetime stats
 const PROF = { username:'', first:'', prefs:{}, created:null, loaded:false };
@@ -12652,6 +12681,7 @@ async function acctPull() {
   const p = data && data.progress || {};
   if (p.quests) { unionInto(QS.owned, p.quests.owned); unionInto(QS.done, p.quests.done); unionInto(QS.shards, p.quests.shards); qSave(); renderSuitCards($('suitCards')); }
   if (p.mods && MODS) { unionInto(MODS.free, p.mods.filter(id => MOD_BY[id])); modSave(); }
+  if (p.credits) { CR.bal = Math.max(CR.bal, p.credits.bal | 0); unionInto(CR.bought, p.credits.bought); crSave(); }
   if (data && data.stats) for (const k in data.stats) if (typeof data.stats[k] === 'number') STATS[k] = Math.max(STATS[k] || 0, data.stats[k]);
   statSave();
   PROF.username = data && data.username || ''; PROF.first = data && data.first_name || ''; PROF.prefs = data && data.prefs || {}; PROF.created = data && data.created_at || new Date().toISOString(); PROF.loaded = true;
@@ -12661,8 +12691,10 @@ async function acctPull() {
 }
 async function acctPush() {
   const u = ACCT.user; if (!u || !ACCT.sb || navigator.onLine === false || !PROF.loaded) return;
-  const prog = acctLocal(), js = JSON.stringify([prog, STATS, PROF.prefs]); if (js === ACCT.lastSaved) return;
-  const row = { id:u.id, progress:prog, stats:STATS, prefs:PROF.prefs, updated_at:new Date().toISOString() };
+  const suitNow = G.state === 'menu' ? 'in the menu' : P.heavy ? 'GOLIATH' : P.mode === 'suited' ? SUIT().name : 'on foot';
+  const prog = acctLocal(), js = JSON.stringify([prog, STATS, PROF.prefs, suitNow]); if (js === ACCT.lastSaved && Date.now() - (ACCT.beat || 0) < 60000) return;
+  ACCT.beat = Date.now();
+  const row = { id:u.id, progress:prog, stats:STATS, prefs:PROF.prefs, current_suit:suitNow, last_seen:new Date().toISOString(), updated_at:new Date().toISOString() };
   if (PROF.username) { row.username = PROF.username; row.display_name = PROF.username; }
   if (PROF.first) row.first_name = PROF.first;
   const { error } = await ACCT.sb.from('profiles').upsert(row);
@@ -12758,6 +12790,142 @@ function acctTick(dt) {
 if (acctAllowed() && typeof navigator !== 'undefined' && !navigator.webdriver) setTimeout(acctInit, 1500);
 typeof addEventListener === 'function' && addEventListener('online', () => { if (!ACCT.sb) acctInit(); acctUI(); });
 
+/* ================= Commander: powers for the game's owner only (signed in with the owner's email) ================= */
+var SA = { on:false, titan:false, squad:null, squadT:0, meteors:[], fx:[], wasOP:false, cd:{} };
+const SA_EMAIL = 'kabir.vr.shah@gmail.com';
+const saV = new V3(), saV2 = new V3();
+function saCheck() {
+  const on = !!(ACCT.user && String(ACCT.user.email || '').toLowerCase() === SA_EMAIL);
+  if (on && !SA.on) saEnable(); else if (!on && SA.on) saDisable();
+}
+function saEnable() {
+  SA.on = true; SA.wasOP = G.opUnlocked;
+  if (!G.opUnlocked) unlockOP(false);
+  renderSuitCards($('suitCards'));
+  saPanel();
+  say(`Welcome back, Commander${acctFirst() ? ' ' + acctFirst() : ''}. Every frame is unlocked, credits are unlimited, and your powers are online: Shift with 1 to 6, or the admin panel.`, { prio:true });
+}
+function saDisable() { SA.on = false; SA.titan = false; if (!SA.wasOP) { G.opUnlocked = false; renderSuitCards($('suitCards')); } saSquadEnd(); }
+// ---- aim point: where the camera is looking, on the ground or 2 km out ----
+function saAim(out, max = 2000) {
+  if (G.lock && hitList().includes(G.lock)) return out.copy(G.lock.pos);
+  camera.getWorldDirection(saV); out.copy(camera.position);
+  for (let d = 0; d < max; d += 5) { out.addScaledVector(saV, 5); if (out.y < floorAt(out.x, out.z, out.y + 2)) { out.y = floorAt(out.x, out.z, out.y + 2); return out; } }
+  return out;
+}
+const SA_POWERS = {
+  titan:{ name:'Titan mode', key:1, desc:'3× damage, 90% less damage taken, faster, endless power' },
+  freeze:{ name:'Chrono freeze', key:2, desc:'Every enemy freezes in place for 8 seconds' },
+  meteor:{ name:'Meteor storm', key:3, desc:'24 meteors rain down where you aim' },
+  squad:{ name:'Squadron', key:4, desc:'Four attack drones fly with you for 40 seconds' },
+  blink:{ name:'Blink', key:5, desc:'Teleport to wherever you are looking' },
+  nova:{ name:'Supernova', key:6, desc:'Wipes out everything within 220 metres' },
+};
+function saPower(id) {
+  if (!SA.on || G.state !== 'play') return;
+  if ((SA.cd[id] || 0) > 0) return;
+  const here = P.pos.clone();
+  if (id === 'titan') {
+    SA.titan = !SA.titan; burst(here, 0xffc83a, 80, 30, .8, false); G.fovKick = 10;
+    say(SA.titan ? 'Titan mode. Triple damage, armour like a mountain, and the power never runs out.' : 'Titan mode off.', { prio:true });
+  } else if (id === 'freeze') {
+    SA.cd[id] = 3; let n = 0;
+    for (const e of enemies) { e.stun = Math.max(e.stun || 0, 8); if (e.vel) e.vel.set(0, 0, 0); e.frozen = 8; burst(e.pos, 0x9fe6ff, 12, 8, .5, false); n++; }
+    saFx(here, 0x9fe6ff, 'ring'); tone('sine', 1800, 200, .8, .06);
+    say(n ? `Chrono freeze. ${n} hostiles stopped dead.` : 'Chrono freeze. Nothing out there to freeze.', { prio:true });
+  } else if (id === 'meteor') {
+    SA.cd[id] = 4; const tgt = saAim(new V3());
+    for (let i = 0; i < 24; i++) SA.meteors.push({ t:-i * .13, tgt:tgt.clone().add(saV2.set(rand(-70, 70), 0, rand(-70, 70))), g:null });
+    say('Meteor storm inbound. Mind your head.', { prio:true });
+  } else if (id === 'squad') {
+    SA.cd[id] = 2; saSquadEnd(); SA.squad = buildWing().concat(buildWing()); SA.squadT = 40;
+    SA.squad.forEach((w, k) => { w.ph = k * Math.PI / 2; w.g.position.copy(P.pos); w.g.scale.setScalar(1.4); });
+    say('Squadron up. Four drones on your wing.', { prio:true });
+  } else if (id === 'blink') {
+    SA.cd[id] = .6; const to = saAim(new V3()); to.y = Math.max(to.y + 3, floorAt(to.x, to.z, to.y + 4) + 3);
+    saFx(here, 0xe9ddff, 'ring'); P.pos.copy(to); P.vel.set(0, 0, 0); saFx(to, 0xe9ddff, 'ring'); tone('sine', 1500, 300, .2, .05);
+  } else if (id === 'nova') {
+    SA.cd[id] = 6;
+    explode(here, 6, 0xfff0c0); addCrater(here, 30); launchCars(here, 150, 45);
+    for (const e of hitList().slice()) if (e.pos.distanceTo(here) < 220) { if (e.kind === 'warden') G.bossShielded = false; damageEnemy(e, 5000, null, true); }
+    if (typeof pillarsNear === 'function') for (const pl of pillarsNear(here, 60)) damagePillar(pl, 2000);
+    saFx(here, 0xfff0c0, 'nova'); G.shake = Math.max(G.shake, 2.5); G.fovKick = 18; sfx.boom(4); if (typeof slowMo === 'function') slowMo(.25, .5);
+    say('Supernova.', { prio:true });
+  }
+}
+function saFx(p, col, kind) { const m = new THREE.Mesh(new THREE.SphereGeometry(1, 28, 18), new THREE.MeshBasicMaterial({ color:col, transparent:true, opacity:.7, blending:THREE.AdditiveBlending, depthWrite:false })); m.position.copy(p); scene.add(m); SA.fx.push({ m, t:0, kind }); }
+function saSquadEnd() { if (SA.squad) for (const w of SA.squad) scene.remove(w.g); SA.squad = null; }
+const meteorGeo = new THREE.IcosahedronGeometry(2.2, 1), meteorMat = new THREE.MeshBasicMaterial({ color:0xffa040 });
+function saTick(dt) {
+  saCheck();
+  const ap = $('apanel'); if (SA.on && ap && !ap.hidden && !SA.apOpen) { SA.apOpen = true; saPanel(); saPlayers(); } else if (ap && ap.hidden) SA.apOpen = false;
+  for (const k in SA.cd) SA.cd[k] -= dt;
+  for (let i = SA.fx.length - 1; i >= 0; i--) { const f = SA.fx[i]; f.t += dt; const k = f.t / (f.kind === 'nova' ? 1.4 : .8); f.m.scale.setScalar(f.kind === 'nova' ? 6 + k * 240 : 2 + k * 30); f.m.material.opacity = .7 * (1 - k); if (k >= 1) { scene.remove(f.m); SA.fx.splice(i, 1); } }
+  // meteors fall from high above and burst on the ground
+  for (let i = SA.meteors.length - 1; i >= 0; i--) {
+    const m = SA.meteors[i]; m.t += dt; if (m.t < 0) continue;
+    if (!m.g) { m.g = new THREE.Mesh(meteorGeo, meteorMat); m.g.position.copy(m.tgt).add(saV.set(rand(-120, 120), 520, rand(-120, 120))); scene.add(m.g); m.v = m.tgt.clone().sub(m.g.position).normalize().multiplyScalar(260); }
+    m.g.position.addScaledVector(m.v, dt); m.g.rotation.x += dt * 4;
+    emit(PS, m.g.position, rand(-4, 4), rand(2, 8), rand(-4, 4), 0xff7a2a, .6); emit(PB, m.g.position, 0, 2, 0, 0x50545e, 1.4);
+    if (m.g.position.y <= floorAt(m.g.position.x, m.g.position.z, m.g.position.y + 2) + 1) {
+      const at = m.g.position.clone(); scene.remove(m.g); SA.meteors.splice(i, 1);
+      explode(at, 2.6, 0xff8a3a); addCrater(at, 7); launchCars(at, 24, 22);
+      for (const e of hitList().slice()) if (e.pos.distanceTo(at) < 26 + e.r) damageEnemy(e, 450, null, true);
+      if (at.distanceTo(P.pos) < 300) G.shake = Math.max(G.shake, .6);
+    }
+  }
+  if (!SA.on || G.state !== 'play') return;
+  // titan: golden aura, endless power, self-repair
+  if (SA.titan && (P.mode === 'suited' || P.heavy)) {
+    P.energy = 100; P.heat = 0; P.overheat = 0;
+    if (P.heavy) P.heavyHp = Math.min(HEAVY.hp, P.heavyHp + HEAVY.hp * .05 * dt); else suitHp = Math.min(SUIT().hp, suitHp + SUIT().hp * .05 * dt);
+    if (Math.random() < .6) { saV.copy(P.pos).add(saV2.set(rand(-1.2, 1.2), rand(-.5, 2.4), rand(-1.2, 1.2))); emit(PS, saV, rand(-1, 1), rand(1, 4), rand(-1, 1), 0xffc83a, .5); }
+  }
+  for (const e of enemies) if (e.frozen > 0) { e.frozen -= dt; if (e.vel) e.vel.multiplyScalar(.5); if (Math.random() < .1) emit(PS, e.pos, rand(-1, 1), rand(-1, 1), rand(-1, 1), 0x9fe6ff, .4); }
+  // squadron
+  if (SA.squad) {
+    SA.squadT -= dt; if (SA.squadT <= 0) { saSquadEnd(); say('Squadron returning to base.', { key:'sqend', cd:5 }); }
+    else { const HL = hitList(); SA.squad.forEach((w, k) => {
+      const a = G.time * 1.1 + w.ph, R = 7; saV.set(Math.cos(a) * R, 3 + Math.sin(G.time * 1.7 + k), Math.sin(a) * R).add(P.pos); w.g.position.lerp(saV, Math.min(1, 6 * dt));
+      let best = null, bd = 260; for (const e of HL) { const d = e.pos.distanceTo(w.g.position); if (d < bd) { bd = d; best = e; } }
+      if (best) w.g.lookAt(best.pos); w.cd -= dt;
+      if (best && w.cd <= 0) { w.cd = .35; saV2.copy(best.pos).sub(w.g.position).normalize(); spawnBullet(boltGeo, 0xffc83a, w.g.position.clone(), saV2.multiplyScalar(480), 25, 'p', false, 1.4); }
+    }); }
+  }
+}
+function saHud() {
+  if (!SA.on || G.state !== 'play') return;
+  hx.save(); hx.textAlign = 'right'; hx.font = '700 11px Oxanium, sans-serif'; hx.fillStyle = '#ffc83a';
+  hx.fillText(`★ COMMANDER${SA.titan ? ' · TITAN' : ''}${SA.squad ? ' · SQUADRON ' + Math.ceil(SA.squadT) + 's' : ''}`, innerWidth - 18, 44); hx.restore();
+}
+// ---- admin panel sections: powers and the player list ----
+function saPanel() {
+  const ap = $('apanel'); if (!ap || !ap.querySelector || $('saSec')) return;
+  const first = ap.querySelector('.ap-sec'); if (!first) return;
+  const sec = document.createElement('div'); sec.className = 'ap-sec'; sec.id = 'saSec';
+  sec.innerHTML = `<h3>COMMANDER POWERS · SHIFT + 1–6</h3><div class="ap-row">${Object.entries(SA_POWERS).map(([id, p]) => `<button class="ghost" data-sa="${id}" title="${p.desc}">${p.key} · ${p.name}</button>`).join('')}</div>
+    <h3 style="margin-top:12px">PLAYERS</h3><div class="ap-row"><button class="ghost" data-sa="refresh">Refresh list</button></div><div id="saPlayers" class="hint" style="max-height:220px;overflow:auto;line-height:1.6"></div>`;
+  first.parentNode.insertBefore(sec, first);
+  sec.addEventListener('click', e => { const b = e.target.closest('[data-sa]'); if (!b) return; e.stopPropagation(); if (b.dataset.sa === 'refresh') saPlayers(); else { closeAdminPanel(); saPower(b.dataset.sa); } });
+  saPlayers();
+}
+async function saPlayers() {
+  const el = $('saPlayers'); if (!el || !ACCT.sb) return;
+  el.textContent = 'Loading…';
+  const { data, error } = await ACCT.sb.rpc('admin_players');
+  if (error) { el.textContent = 'Could not load players: ' + error.message; return; }
+  if (!data || !data.length) { el.textContent = 'No signed-in players yet.'; return; }
+  const ago = t => { if (!t) return 'never'; const s = (Date.now() - new Date(t).getTime()) / 1000; return s < 120 ? '<b style="color:#5be38a">online</b>' : s < 3600 ? Math.round(s / 60) + ' min ago' : s < 86400 ? Math.round(s / 3600) + ' h ago' : Math.round(s / 86400) + ' days ago'; };
+  const esc = t => String(t || '').replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' })[c]);
+  el.innerHTML = data.map(r => `<div><strong>${esc(r.username)}</strong> · ${esc(r.current_suit || '—')} · ${ago(r.last_seen)} · ${r.frames} frames · ${r.kills} kills</div>`).join('');
+}
+window.addEventListener('keydown', e => {
+  if (!SA.on || !e.shiftKey || e.repeat || G.chatOpen || G.state !== 'play') return;
+  const m = e.code.match(/^Digit([1-6])$/); if (!m) return;
+  const id = Object.keys(SA_POWERS).find(k => SA_POWERS[k].key === +m[1]); if (!id) return;
+  e.preventDefault(); e.stopImmediatePropagation(); saPower(id);
+}, true);
+
 let last = performance.now(), blinkT = 0;
 {
   const keep = new Set([...blobs, muzzleLight, ATM.pts, sky, hemi, sun, sun.target, amb, camera, shieldGrp, sonicRing, playerLight, chute, searchLight, searchLight.target, P.rig && P.rig.root, ...flashLights, ...beams.map(b => b.g), PS.pts, PB.pts]);
@@ -12843,7 +13011,7 @@ function step(rdt) {
   if (P.rig) syncPilotBody(P.rig, P.armor, P.camo);
   adminTick();
   updateEarthPlus(rdt);
-  updateFeatures(rdt); photoTick(); updateGfx(rdt); netTick(rdt); animTick(rdt); rescueTick(rdt); updateGfx2(); solTick(rdt); heavyTick(rdt); modTick(rdt); modFxTick(rdt); cineTick(rdt); libTick(rdt); detailTick(rdt); questTick(rdt); shardTick(rdt); seaTick(rdt); acctTick(rdt);
+  updateFeatures(rdt); photoTick(); updateGfx(rdt); netTick(rdt); animTick(rdt); rescueTick(rdt); updateGfx2(); solTick(rdt); heavyTick(rdt); modTick(rdt); modFxTick(rdt); cineTick(rdt); libTick(rdt); detailTick(rdt); questTick(rdt); shardTick(rdt); seaTick(rdt); acctTick(rdt); saTick(rdt);
 }
 function loop(now) {
   requestAnimationFrame(loop);
@@ -12859,7 +13027,7 @@ window.__SW_updateGadgets = updateGadgets; window.__SW_inside = (p) => insideBui
 $('pauseStar').addEventListener('click', () => { resume(); openStarMap(); });
 $('pauseRace').addEventListener('click', () => { resume(); openRaces(); });
 $('pausePhoto').addEventListener('click', () => { resume(); enterPhoto(); });
-window.__SW = { PROF, STATS, profEdit, profCard, profGreet, ACCT, acctInit, SEAS, killEnemy, instantSuit, resume, QS, QNPC, SING, startQuest, completeQuest, talkTo, openJournal, shardUse, suitOwned, questTick, BRAIN, brainLoad, LIB, CINE, FIRE, DET, startCine, endCine, libWear, libBuildOne, aiChat, localReply, fireLance, bakeBotRig, MODS, MOD_DEFS, modPartLost, modOffer, openMods, modPick, modK, HV, heavySlam, rocketFist, buildHeavyRig, SOL, solArrive, enterSol, solBody, updateGfx2, GFX2, composer, bloomPass, WP, earthBiome, RES, startRescue, catchSuit, eject, AR, punch, AN, SHOT, startShot, animHit, slowMo, heroLanding, superLaunch, NET, netHost, netJoin, netLeave, openOnline, netSetMode, netHostRace, netChat, GFX, updateGfx, rebuildGrass, toggleSentry, RACES, RACE, startRace, stopRace, WX, setWeather, PH, enterPhoto, exitPhoto, PX, planetExtras, canWarp, sky, updateEnv, updateEarthPlus, earthGround, earthH, earthWater, earthPlaces, adminTeleport, adminWarp, openAdminPanel, SITES, adminCommand, enableAdmin, disableAdmin, startStall, hurtPlayer, damageEnemy, bullets, PILOTS, BOT, spawnBot, removeBot, clearBots, updateBots, botHurt, hitList, syncPilotBody, BUILDS, frameBuild, buildRig, fullArmor, refreshArmor, rimRig, renderer, scene, camera, GradeShader, ATM, trails, popups, barrelRoll, airBrake, coreBurst, spawnFaller, vortices, trackVortex, WORLDS, setWorld, startWarp, openStarMap, worldGround, getWorld:() => WORLD_ID, PERF, sonicPulse, sonarPing, grabCar, throwHeld, repairSpray, carsNear, punchCars, colliders, hotCars, ventCoolant, startStall, crashRagdoll, damageBuilding, collapsing, startMontage, cracks, addCrack, isWater, cycleSuit, openCheat, closeCheat, openPanel, closePanel, unlockOP, frameAbility, superLaunch, tryGrab, cars, pillars, damagePillar, damageCar, swarmDrones, explode, hurtPlayer, callHeavy, punch, frameZones:() => frameZones, G, P, W, SUITS, step, launch, startMode, suitUp, callSuit, eject, toggleSentry, selfDestruct, toggleHelmet, toggleFace, detachPart, reassemble, selectSuit, runCommand, fireHand, fireMissiles, fireLasers, fireMinigun, dropFlares, spawnEnemy, enemies, eMissiles, keys, beginMission, setCam, BAY, PAD, toggleSupersonic, get suitHp() { return suitHp; } };
+window.__SW = { SA, saPower, saEnable, CR, modPrice, PROF, STATS, profEdit, profCard, profGreet, ACCT, acctInit, SEAS, killEnemy, instantSuit, resume, QS, QNPC, SING, startQuest, completeQuest, talkTo, openJournal, shardUse, suitOwned, questTick, BRAIN, brainLoad, LIB, CINE, FIRE, DET, startCine, endCine, libWear, libBuildOne, aiChat, localReply, fireLance, bakeBotRig, MODS, MOD_DEFS, modPartLost, modOffer, openMods, modPick, modK, HV, heavySlam, rocketFist, buildHeavyRig, SOL, solArrive, enterSol, solBody, updateGfx2, GFX2, composer, bloomPass, WP, earthBiome, RES, startRescue, catchSuit, eject, AR, punch, AN, SHOT, startShot, animHit, slowMo, heroLanding, superLaunch, NET, netHost, netJoin, netLeave, openOnline, netSetMode, netHostRace, netChat, GFX, updateGfx, rebuildGrass, toggleSentry, RACES, RACE, startRace, stopRace, WX, setWeather, PH, enterPhoto, exitPhoto, PX, planetExtras, canWarp, sky, updateEnv, updateEarthPlus, earthGround, earthH, earthWater, earthPlaces, adminTeleport, adminWarp, openAdminPanel, SITES, adminCommand, enableAdmin, disableAdmin, startStall, hurtPlayer, damageEnemy, bullets, PILOTS, BOT, spawnBot, removeBot, clearBots, updateBots, botHurt, hitList, syncPilotBody, BUILDS, frameBuild, buildRig, fullArmor, refreshArmor, rimRig, renderer, scene, camera, GradeShader, ATM, trails, popups, barrelRoll, airBrake, coreBurst, spawnFaller, vortices, trackVortex, WORLDS, setWorld, startWarp, openStarMap, worldGround, getWorld:() => WORLD_ID, PERF, sonicPulse, sonarPing, grabCar, throwHeld, repairSpray, carsNear, punchCars, colliders, hotCars, ventCoolant, startStall, crashRagdoll, damageBuilding, collapsing, startMontage, cracks, addCrack, isWater, cycleSuit, openCheat, closeCheat, openPanel, closePanel, unlockOP, frameAbility, superLaunch, tryGrab, cars, pillars, damagePillar, damageCar, swarmDrones, explode, hurtPlayer, callHeavy, punch, frameZones:() => frameZones, G, P, W, SUITS, step, launch, startMode, suitUp, callSuit, eject, toggleSentry, selfDestruct, toggleHelmet, toggleFace, detachPart, reassemble, selectSuit, runCommand, fireHand, fireMissiles, fireLasers, fireMinigun, dropFlares, spawnEnemy, enemies, eMissiles, keys, beginMission, setCam, BAY, PAD, toggleSupersonic, get suitHp() { return suitHp; } };
 })();
 </script>
 </body>
