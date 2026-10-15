@@ -404,7 +404,7 @@ details summary{cursor:pointer;color:var(--cyan);font-size:12px;letter-spacing:.
       <div class="cta">
         <button class="go chamfer" id="launch">LAUNCH</button>
         <button class="ghost" id="menuOnline" type="button">PLAY ONLINE · with friends</button>
-        <span class="label" id="buildTag" style="opacity:.7">Build 13 Oct 2026 · COMMANDER</span>
+        <span class="label" id="buildTag" style="opacity:.7">Build 15 Oct 2026 · ADD-ONS 3</span>
         <button class="ghost" id="creditsBtn">About &amp; credits</button>
         <button class="ghost" id="menuCheat">Controls</button>
         <button class="ghost touch-only" id="menuPanel">Control panel</button>
@@ -4893,7 +4893,7 @@ function killEnemy(e) {
   const i = enemies.indexOf(e); if (i < 0) return;
   enemies.splice(i, 1); scene.remove(e.g);
   explode(e.pos, e.kind === 'warden' ? 4 : e.kind === 'heavy' ? 1.8 : 1, e.kind === 'heavy' ? 0xffa040 : 0xff5a3c);
-  G.score += e.T.score; G.combo = (G.combo || 0) + 1; G.comboT = 4; modOnKill(e); acctStat('kills', 1);
+  G.score += e.T.score; G.combo = (G.combo || 0) + 1; G.comboT = 4; modOnKill(e); acctStat('kills', 1); dropOrbs(e);
   scorePopup(e.pos, '+' + e.T.score + (G.combo >= 3 ? '  ×' + G.combo : ''), e.kind === 'drone' ? '#ffb547' : '#ff8a3a'); hitMarker(true);
   if (e.kind !== 'drone') G.hitStop = e.kind === 'warden' ? .25 : .07;
   G.kills.push(G.time); G.kills = G.kills.filter(t => G.time - t < 4);
@@ -5256,7 +5256,7 @@ function hurtPlayer(dmg, from, at) {
     $('vignette').style.opacity = clamp(dmg / 14, .25, .8); G.vigT = .25; G.shake = Math.max(G.shake, .25);
     const f = suitHp / SUIT().hp;
     if (f < .3 && f > 0) say(`Structural integrity at ${Math.round(f * 100)} percent. Break line of sight and let the plating recover.`, { key:'lowhp', cd:14, prio:true });
-    if (suitHp <= 0 && P.mode === 'suited') suitBroken();
+    if (suitHp <= 0 && P.mode === 'suited' && !modPhoenix()) suitBroken();
   } else hurtPilot(dmg);
 }
 function hurtPilot(dmg) {
@@ -5826,7 +5826,7 @@ function updateProjectiles(dt) {
       if (!dead) for (const m of eMissiles) if (segDist2(b.prev, b.pos, m.pos) < 2.2) { killEMissile(m, true); dead = true; break; }
       if (!dead && hotCars.size) for (const c of hotCars) if (c.vel && segDist2(b.prev, b.pos, c.g.position) < 7) { c.vel.addScaledVector(t3.copy(b.vel).normalize(), 9); c.proj = 3; damageCar(c, 4, b.pos); dead = true; break; }
     } else if (!dead && b.owner === 'e') {
-      if (shieldBlocks(b.pos)) { dead = true; burst(b.pos, AS().glow, 10, 10, .3, false); }
+      if (shieldBlocks(b.pos)) { dead = true; burst(b.pos, AS().glow, 10, 10, .3, false); modMirror(b); }
       else if (!P.heavy && P.morph === 'shield' && P.mode === 'suited' && t2.copy(b.pos).sub(P.pos).length() < 5 && t2.normalize().dot(forwardVec(P.yaw, 0, t4)) > .2) { dead = true; burst(b.pos, SUIT().glow, 12, 12, .3, false); sfx.hit(); }
       else if (!P.dead && !(P.phaseT > 0 && P.mode === 'suited')) {
         t1.copy(P.pos).y += .5; const rr = P.heavy ? 4.6 : P.mode === 'suited' ? 2.1 : 1.2;
@@ -10794,7 +10794,7 @@ try { const s = JSON.parse(localStorage.getItem('sw_mods') || '[]'); if (Array.i
 const modSave = () => { try { localStorage.setItem('sw_mods', JSON.stringify(MODS.free)); } catch (e) {} };
 const modList = () => (G.mode === 'combat' ? MODS.earned : MODS.free);
 const modOn = id => !!MODS && modList().includes(id);
-function modK(kind) { if (!MODS) return 1; let k = 1; for (const id of modList()) { const d = MOD_BY[id]; if (d && d.k && d.k[kind]) k *= d.k[kind]; } if (typeof SA !== 'undefined' && SA.titan) k *= ({ wpn:3, arm:.1, thr:1.7 })[kind] || 1; return k; }
+function modK(kind) { if (!MODS) return 1; let k = 1; for (const id of modList()) { const d = MOD_BY[id]; if (d && d.k && d.k[kind]) k *= d.k[kind]; } if (typeof SA !== 'undefined' && SA.titan) k *= ({ wpn:3, arm:.1, thr:1.7 })[kind] || 1; if (kind === 'thr' && typeof wingsK === 'function') k *= wingsK(); return k; }
 function modHudLabel() { if (!MODS) return 'Add-ons'; const n = modList().length; return n ? `Add-ons · ${n} fitted` : 'Add-ons'; }
 
 /* ---------- the supply drone ---------- */
@@ -10860,7 +10860,7 @@ function droneArrive(d) {
     const list = job.list || modList();
     if (!list.includes(job.id)) list.push(job.id);
     if (list === MODS.free) modSave();
-    modApply(true);
+    modApply(true); if (typeof modInstallFx === 'function') modInstallFx(job.id, d.g.position);
     say(`${MOD_BY[job.id].name} fitted. ${MOD_BY[job.id].sub}.`, { prio:true });
   }
 }
@@ -10912,7 +10912,7 @@ function droneTick(dt) {
 }
 
 /* ---------- add-on visuals on the suit ---------- */
-function modVisuals(rig) {
+function modVisualsOld(rig) {
   if (!rig || !rig.pieces) return;
   for (const p of rig.pieces) { const old = p.g.getObjectByName('modVis'); if (old) p.g.remove(old); }
   const glow = new THREE.MeshBasicMaterial({ color:rig.suit && rig.suit.glow !== undefined ? rig.suit.glow : AS().glow });
@@ -11347,6 +11347,167 @@ window.addEventListener('keydown', e => {
   if (G.chatOpen || G.state !== 'play' || e.repeat) return;
   if (e.code === 'Digit9' && !(e.target && e.target.tagName === 'INPUT')) { e.preventDefault(); fireLance(); }
 });
+
+/* ================= Add-ons, part three: six new ones, moving parts on every add-on, and a proper fitting sequence ================= */
+const NEW_DEFS = [
+  { id:'jetwings', sig:true, name:'Jet wings',        sub:'Wings fold out at speed: sharper turns, faster cruise, contrails' },
+  { id:'cannon',   sig:true, name:'Shoulder cannon',  sub:'A cannon on your shoulder aims and fires at your target by itself' },
+  { id:'magnet',   sig:true, name:'Credit magnet',    sub:'Pulls in credit orbs from 120 m away and doubles their value' },
+  { id:'phoenix',  sig:true, name:'Phoenix core',     sub:'Once per suit, rise from destruction with full armour in a firestorm' },
+  { id:'mirror',   sig:true, name:'Mirror shield',    sub:'Your shield (F) fires enemy bolts straight back at them' },
+  { id:'wake',     sig:true, name:'Plasma wake',      sub:'Boosting leaves a burning trail that scorches anything that crosses it' },
+];
+for (const d of NEW_DEFS) { MOD_DEFS.unshift(d); MOD_BY[d.id] = d; }
+Object.assign(MOD_PRICES, { jetwings:900, cannon:2000, magnet:700, phoenix:2600, mirror:1600, wake:1100 });
+try { const s = JSON.parse(localStorage.getItem('sw_mods') || '[]'); if (Array.isArray(s)) for (const id of s) if (MOD_BY[id] && !MODS.free.includes(id)) MODS.free.push(id); } catch (e) {}
+Object.assign(MODS, { orbs:[], wake:[], phoenixUsed:false, cannonCD:0, installs:[], beams:[] });
+
+/* ---------- the look of every add-on, with parts that move ---------- */
+const MV = { v:new V3(), v2:new V3(), q:new THREE.Quaternion() };
+function modVisuals(rig) {
+  if (!rig || !rig.pieces) return;
+  for (const p of rig.pieces) { const old = p.g.getObjectByName('modVis'); if (old) p.g.remove(old); }
+  rig._mv = {};
+  const col = rig.suit && rig.suit.glow !== undefined ? rig.suit.glow : AS().glow;
+  const glow = new THREE.MeshBasicMaterial({ color:col }), glowA = new THREE.MeshBasicMaterial({ color:col, transparent:true, opacity:.6, blending:THREE.AdditiveBlending, depthWrite:false });
+  const dark = new THREE.MeshStandardMaterial({ color:0x262a30, metalness:.85, roughness:.3 }), steel = new THREE.MeshStandardMaterial({ color:0x9aa3ad, metalness:.9, roughness:.22 });
+  const gold = new THREE.MeshStandardMaterial({ color:0xc9a957, metalness:.95, roughness:.25, emissive:0x000000 }), red = new THREE.MeshBasicMaterial({ color:0xff3b5c }), orange = new THREE.MeshBasicMaterial({ color:0xff8a2a });
+  const fire = new THREE.MeshBasicMaterial({ color:0xffa040, transparent:true, opacity:.8, blending:THREE.AdditiveBlending, depthWrite:false });
+  const pieceOf = (zone, pick) => { const ps = rig.pieces.filter(p => p.zone === zone); return ps.length ? ps[pick === 'last' ? ps.length - 1 : 0] : null; };
+  const s = rig.heavy ? 1.6 : 1, L = modList();
+  const m = (geo, mat, x, y, z, g, rx = 0, ry = 0, rz = 0) => { const o = new THREE.Mesh(geo, mat); o.position.set(x * s, y * s, z * s); o.rotation.set(rx, ry, rz); o.scale.setScalar(s); o.castShadow = false; g.add(o); return o; };
+  const at = (id, zone, build, pick) => { const p = pieceOf(zone, pick); if (!p) return; const g = new THREE.Group(); g.name = 'modVis'; const parts = build(g) || {}; p.g.add(g); (rig._mv[id] = rig._mv[id] || []).push(Object.assign({ g, glow, glowA, gold }, parts)); };
+  const B = (w, h, d) => new THREE.BoxGeometry(w, h, d), C = (r1, r2, h, n = 12) => new THREE.CylinderGeometry(r1, r2, h, n), T = (r, t, n = 18) => new THREE.TorusGeometry(r, t, 6, n);
+  if (L.includes('plating')) at('plating', 'chest', g => { const pl = []; for (const sx of [-1, 1]) { pl.push(m(B(.2, .27, .035), gold, sx * .15, .02, -.27, g, -.15, sx * .28, 0)); for (const dy of [-.09, .09]) m(C(.012, .012, .02, 6), steel, sx * .2, .02 + dy, -.29, g, Math.PI / 2); } return { pl }; });
+  if (L.includes('thrusters')) at('thrusters', 'back', g => { const fl = []; for (const sx of [-1, 1]) { m(C(.06, .09, .26), dark, sx * .2, -.12, .26, g); m(T(.07, .012), steel, sx * .2, -.03, .26, g, Math.PI / 2); m(new THREE.CircleGeometry(.055, 12), glow, sx * .2, -.255, .26, g, Math.PI / 2); const f = m(new THREE.ConeGeometry(.05, .5, 10, 1, true), fire, sx * .2, -.5, .26, g, Math.PI); fl.push(f); } return { fl }; });
+  if (L.includes('repulsors')) for (const z of ['armR', 'armL']) at('repulsors', z, g => { const r1 = m(T(.075, .016), glow, 0, -.05, -.12, g), r2 = m(T(.05, .01, 12), glowA, 0, -.05, -.135, g); return { r1, r2, side:z }; }, 'last');
+  if (L.includes('cells')) at('cells', 'abdomen', g => { const c = []; for (let i = -1; i <= 1; i++) { m(B(.07, .12, .035), dark, i * .09, 0, -.215, g); c.push(m(B(.05, .09, .01), glow.clone(), i * .09, 0, -.236, g)); } return { c }; });
+  if (L.includes('nanites')) at('nanites', 'chest', g => ({ ring:m(T(.11, .012, 28), glowA, 0, .06, -.29, g), ring2:m(T(.08, .008, 24), glowA, 0, .06, -.295, g) }));
+  if (L.includes('rack')) at('rack', 'armL', g => { m(B(.13, .11, .28), dark, -.13, .05, 0, g); const lid = new THREE.Group(); lid.position.set(-.13 * s, .105 * s, .14 * s); g.add(lid); m(B(.13, .015, .28), steel, 0, 0, -.14, lid); for (const dx of [-.03, .03]) for (const dy of [-.025, .025]) m(new THREE.CircleGeometry(.018, 8), red, -.13 + dx, .05 + dy, -.141, g, Math.PI); return { lid }; }, 'last');
+  if (L.includes('sinks')) at('sinks', 'back', g => { const fins = []; for (let i = 0; i < 4; i++) fins.push(m(B(.3, .016, .08), dark.clone(), 0, .16 - i * .05, .27, g)); return { fins }; });
+  if (L.includes('wing')) at('wing', 'back', g => { for (const sx of [-1, 1]) { m(B(.04, .16, .06), steel, sx * .26, .05, .24, g); m(B(.08, .02, .08), dark, sx * .26, .14, .25, g); } });
+  if (L.includes('arc')) at('arc', 'back', g => { const coils = []; for (const sx of [-1, 1]) { m(C(.025, .035, .16, 8), steel, sx * .22, .27, .18, g); for (let k = 0; k < 3; k++) m(T(.035, .006, 10), gold, sx * .22, .22 + k * .04, .18, g, Math.PI / 2); coils.push(m(new THREE.SphereGeometry(.035, 10, 8), glowA, sx * .22, .37, .18, g)); } return { coils }; });
+  if (L.includes('cluster')) at('cluster', 'chest', g => { m(B(.04, .5, .03), dark, 0, 0, -.3, g, 0, 0, .75); for (let k = 0; k < 5; k++) m(new THREE.SphereGeometry(.03, 8, 6), orange, -.15 + k * .075, .13 - k * .065, -.32, g); });
+  if (L.includes('lance')) at('lance', 'back', g => { const arm = new THREE.Group(); arm.position.set(-.18 * s, .2 * s, .22 * s); g.add(arm); m(C(.012, .012, .2, 6), steel, 0, .1, 0, arm); const dish = m(new THREE.SphereGeometry(.09, 16, 6, 0, Math.PI * 2, 0, Math.PI / 2.6), steel, 0, .2, 0, arm, Math.PI); m(new THREE.SphereGeometry(.015, 6, 4), red, 0, .17, 0, arm); return { arm, dish }; });
+  if (L.includes('meteor')) for (const z of ['legL', 'legR']) at('meteor', z, g => ({ spike:m(new THREE.ConeGeometry(.05, .14, 8), orange.clone(), 0, -.22, .12, g, -1.9) }), 'last');
+  if (L.includes('decoy')) at('decoy', 'chest', g => ({ proj:m(new THREE.OctahedronGeometry(.03, 0), glowA, .14, .14, -.29, g) }));
+  if (L.includes('overdrive')) at('overdrive', 'back', g => { const v = []; for (const sx of [-1, 1]) for (let k = 0; k < 3; k++) v.push(m(B(.08, .012, .03), red.clone(), sx * .2, .24 - k * .03, .2, g, 0, 0, sx * .3)); return { v }; });
+  if (L.includes('aegis')) at('aegis', 'back', g => { const halo = new THREE.Group(); halo.position.set(0, .12 * s, .36 * s); g.add(halo); for (let k = 0; k < 6; k++) { const a = k / 6 * Math.PI * 2; m(new THREE.CircleGeometry(.05, 6), glowA, Math.cos(a) * .2, Math.sin(a) * .2, 0, halo); } m(T(.2, .006, 36), glowA, 0, 0, 0, halo); return { halo }; });
+  if (L.includes('jetwings')) at('jetwings', 'back', g => { const wings = []; for (const sx of [-1, 1]) { const hinge = new THREE.Group(); hinge.position.set(sx * .12 * s, .14 * s, .24 * s); g.add(hinge); m(B(.62, .025, .2), dark, sx * .31, 0, 0, hinge, 0, 0, 0); m(B(.6, .006, .03), glow, sx * .31, .014, .09, hinge); m(B(.04, .03, .2), steel, sx * .6, 0, 0, hinge); wings.push({ hinge, sx }); } return { wings }; });
+  if (L.includes('cannon')) at('cannon', 'back', g => { const mount = new THREE.Group(); mount.position.set(.22 * s, .3 * s, .14 * s); g.add(mount); m(new THREE.SphereGeometry(.06, 12, 8), dark, 0, 0, 0, mount); const barrel = new THREE.Group(); mount.add(barrel); m(C(.028, .034, .36, 10), steel, 0, 0, -.18, barrel, Math.PI / 2); m(C(.04, .04, .06, 10), dark, 0, 0, -.36, barrel, Math.PI / 2); const muzzle = m(new THREE.CircleGeometry(.022, 10), glow, 0, 0, -.391, barrel, 0, Math.PI, 0); return { mount, barrel, muzzle }; });
+  if (L.includes('magnet')) at('magnet', 'chest', g => ({ coil:m(T(.09, .02, 24), gold, 0, -.08, -.29, g), core:m(new THREE.SphereGeometry(.03, 10, 8), glow, 0, -.08, -.3, g) }));
+  if (L.includes('phoenix')) at('phoenix', 'chest', g => ({ em:m(new THREE.OctahedronGeometry(.05, 0), orange.clone(), 0, .16, -.3, g), wingL:m(B(.1, .012, .03), orange, -.07, .17, -.3, g, 0, 0, .5), wingR:m(B(.1, .012, .03), orange, .07, .17, -.3, g, 0, 0, -.5) }));
+  if (L.includes('mirror')) at('mirror', 'armL', g => { const hinge = new THREE.Group(); hinge.position.set(-.1 * s, 0, 0); g.add(hinge); const plate = m(new THREE.CircleGeometry(.16, 6), new THREE.MeshStandardMaterial({ color:0xdfe8f2, metalness:1, roughness:.05, side:THREE.DoubleSide }), -.02, 0, 0, hinge, 0, Math.PI / 2, 0); return { hinge, plate }; }, 'last');
+  if (L.includes('wake')) for (const z of ['legL', 'legR']) at('wake', z, g => ({ em:m(C(.04, .05, .06, 10), new THREE.MeshBasicMaterial({ color:0x5aa8ff }), 0, -.26, .1, g) }), 'last');
+}
+/* ---------- animation of the parts, every frame ---------- */
+function modVisTick(dt) {
+  const r = P.heavy ? P.hrig : P.rig; if (!r || !r._mv) return;
+  const t = G.time, boosting = (keys.ShiftLeft || keys.ShiftRight || touch.boost) && P.mode === 'suited', spd = P.vel.length();
+  const firing = (P.recoil && (P.recoil[0] > .1 || P.recoil[1] > .1)) || (P.handCD && (P.handCD[0] > 0 || P.handCD[1] > 0));
+  const each = (id, f) => { const a = r._mv[id]; if (a) for (const x of a) f(x); };
+  each('plating', x => { const hit = clamp(1 - (G.time - (P.lastHit || -9)) * 3, 0, 1); x.gold.emissive.setRGB(hit * .8, hit * .6, hit * .2); });
+  each('thrusters', x => x.fl.forEach(f => { const k = boosting ? 1.2 + Math.random() * .5 : .25 + Math.random() * .1; f.scale.set(1, k, 1); f.material.opacity = boosting ? .9 : .35; }));
+  each('repulsors', x => { const sp = firing ? 22 : 2.5; x.r1.rotation.z += dt * sp; x.r2.rotation.z -= dt * sp * 1.5; x.r2.scale.setScalar(firing ? 1.3 + Math.random() * .2 : 1); });
+  each('cells', x => x.c.forEach((c, i) => { const lvl = clamp(P.energy / 100 * 3 - i, 0, 1); c.material.color.setHSL(.5 - (1 - lvl) * .5, 1, .25 + lvl * .35 + Math.sin(t * 6 + i) * .05); }));
+  each('nanites', x => { const fixing = G.time - (P.lastHit || -99) > 3 && suitHp < SUIT().hp; const k = fixing ? 1 + Math.sin(t * 8) * .15 : 1; x.ring.scale.setScalar(k); x.ring.rotation.z += dt * (fixing ? 4 : .5); x.ring2.rotation.z -= dt * (fixing ? 6 : .8); x.ring.material.opacity = fixing ? .9 : .4; });
+  each('rack', x => { const open = (P.gMsl || 0) > 0 ? 1 : 0; x.lid.rotation.x = lerp(x.lid.rotation.x, -open * 1.6, Math.min(1, 10 * dt)); });
+  each('sinks', x => x.fins.forEach((f, i) => { const h = clamp((P.heat || 0) / 100, 0, 1); f.scale.x = 1 + h * .5; f.material.emissive = f.material.emissive || new THREE.Color(); f.material.emissive.setRGB(h * 1.2, h * .25, 0); f.position.z = (.27 + h * .04 + Math.sin(t * 9 + i) * h * .006) * (P.heavy ? 1.6 : 1); }));
+  each('arc', x => x.coils.forEach(c => { c.scale.setScalar((firing ? 1.4 : 1) + Math.random() * (firing ? .6 : .15)); c.material.opacity = firing ? .95 : .5; if (firing && Math.random() < .25) { c.getWorldPosition(MV.v); emit(PS, MV.v, rand(-3, 3), rand(-1, 3), rand(-3, 3), 0xbfe8ff, .15); } }));
+  each('lance', x => { const busy = !!MODS.lance, ready = MODS.lanceCD <= 0; x.arm.rotation.x = lerp(x.arm.rotation.x, busy ? -1.2 : ready ? -.35 : 0, Math.min(1, 5 * dt)); x.dish.rotation.y += dt * (busy ? 9 : ready ? 1.2 : 0); });
+  each('meteor', x => { const k = clamp(-P.vel.y / 60, 0, 1); x.spike.material.color.setRGB(1, .5 + k * .5, .15 + k * .7); x.spike.scale.setScalar(1 + k * .6); if (k > .5 && Math.random() < .5) { x.spike.getWorldPosition(MV.v); emit(PS, MV.v, rand(-1, 1), 3, rand(-1, 1), 0xff8a2a, .3); } });
+  each('decoy', x => { x.proj.rotation.y += dt * 5; x.proj.material.opacity = .35 + Math.random() * .4; });
+  each('overdrive', x => { const k = (P.overT || 0) > 0 ? 1 : MODS.od / 100; x.v.forEach((v, i) => { v.material.color.setRGB(.3 + k * .7 + ((P.overT || 0) > 0 ? Math.random() * .3 : 0), .05 + k * .2, .1); v.scale.x = 1 + k * .4; }); });
+  each('aegis', x => { const ready = MODS.aegisCD <= 0; x.halo.rotation.z += dt * (ready ? .8 : .2); x.halo.scale.setScalar(ready ? 1 + Math.sin(t * 2) * .05 : .7); });
+  each('jetwings', x => { const want = spd > 90 || boosting ? 1 : 0; x.open = lerp(x.open || 0, want, Math.min(1, 4 * dt));
+    x.wings.forEach(w => { w.hinge.rotation.z = w.sx * lerp(-1.35, .08, x.open); w.hinge.rotation.y = w.sx * lerp(.9, .25, x.open); if (x.open > .8 && spd > 140) { w.hinge.localToWorld(MV.v.set(w.sx * .62 * (P.heavy ? 1.6 : 1), 0, 0)); emit(PB, MV.v, 0, 0, 0, 0xeef6ff, .7); } }); });
+  each('cannon', x => { const tg = MODS.cannonTarget; if (tg) { x.mount.getWorldPosition(MV.v); MV.v2.copy(tg.pos).sub(MV.v); x.mount.parent.getWorldQuaternion(MV.q).invert(); MV.v2.applyQuaternion(MV.q); const yaw = Math.atan2(-MV.v2.x, -MV.v2.z), pit = Math.atan2(MV.v2.y, Math.hypot(MV.v2.x, MV.v2.z)); x.mount.rotation.y = lerpAng(x.mount.rotation.y, yaw, Math.min(1, 8 * dt)); x.barrel.rotation.x = lerp(x.barrel.rotation.x, pit, Math.min(1, 8 * dt)); }
+    x.barrel.position.z = lerp(x.barrel.position.z, 0, Math.min(1, 10 * dt)); if (MODS.cannonKick) { x.barrel.position.z = .08 * (P.heavy ? 1.6 : 1); x.muzzle.getWorldPosition(MV.v); burst(MV.v, AS().glow, 8, 10, .2, false); MODS.cannonKick = false; } });
+  each('magnet', x => { const pulling = MODS.orbs.some(o => o.pull); x.coil.rotation.z += dt * (pulling ? 14 : 1); x.core.scale.setScalar(pulling ? 1.4 + Math.random() * .3 : 1); });
+  each('phoenix', x => { const ready = !MODS.phoenixUsed; const k = ready ? .7 + Math.sin(t * 3) * .3 : .15; x.em.material.color.setRGB(k, k * .45, .05); x.em.rotation.y += dt * 2; });
+  each('mirror', x => { const on = typeof shieldOn !== 'undefined' && shieldOn; x.hinge.rotation.z = lerp(x.hinge.rotation.z, on ? -1.4 : 0, Math.min(1, 10 * dt)); });
+  each('wake', x => { x.em.material.color.setHSL(.6, 1, boosting ? .6 + Math.random() * .2 : .3); });
+}
+/* ---------- the fitting sequence: a beam from the drone, the part grows into place, welding sparks ---------- */
+function modInstallFx(id, from) {
+  const r = P.heavy ? P.hrig : P.rig; if (!r || !r._mv || !r._mv[id]) return;
+  for (const x of r._mv[id]) { x.g.scale.setScalar(.01); MODS.installs.push({ g:x.g, t:0, spin:rand(2, 4) });
+    x.g.getWorldPosition(MV.v); const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints([from.clone(), MV.v.clone()]), new THREE.LineBasicMaterial({ color:AS().glow, transparent:true, blending:THREE.AdditiveBlending, depthWrite:false }));
+    line.frustumCulled = false; scene.add(line); MODS.beams.push({ line, t:0, g:x.g, from:from.clone() }); }
+  banner('ADD-ON FITTED', MOD_BY[id].name.toUpperCase()); tone('sine', 660, 1320, .25, .05);
+}
+function installTick(dt) {
+  for (let i = MODS.installs.length - 1; i >= 0; i--) { const a = MODS.installs[i]; a.t += dt; const k = clamp(a.t / .7, 0, 1), e = 1 + 2.7 * Math.pow(k - 1, 3) + 1.7 * Math.pow(k - 1, 2);
+    a.g.scale.setScalar(Math.max(.01, e)); a.g.rotation.y = (1 - k) * a.spin; if (Math.random() < .6 && k < 1) { a.g.getWorldPosition(MV.v); emit(PS, MV.v, rand(-4, 4), rand(0, 5), rand(-4, 4), Math.random() < .5 ? 0xffffff : 0xffd080, .25); }
+    if (k >= 1) { a.g.scale.setScalar(1); a.g.rotation.y = 0; MODS.installs.splice(i, 1); } }
+  for (let i = MODS.beams.length - 1; i >= 0; i--) { const b = MODS.beams[i]; b.t += dt; b.g.getWorldPosition(MV.v); const pa = b.line.geometry.attributes.position; pa.setXYZ(1, MV.v.x, MV.v.y, MV.v.z); if (MODS.drone) pa.setXYZ(0, MODS.drone.g.position.x, MODS.drone.g.position.y - 1, MODS.drone.g.position.z); pa.needsUpdate = true; b.line.material.opacity = (1 - b.t / .8) * (.6 + Math.random() * .4);
+    if (b.t > .8) { scene.remove(b.line); b.line.geometry.dispose(); MODS.beams.splice(i, 1); } }
+}
+
+/* ---------- what the new add-ons do ---------- */
+const orbGeo = new THREE.OctahedronGeometry(.45, 0), orbMat = new THREE.MeshBasicMaterial({ color:0xffc83a });
+function dropOrbs(e) {
+  const n = e.kind === 'warden' ? 12 : e.kind === 'heavy' ? 5 : 2;
+  for (let i = 0; i < n; i++) { const g = new THREE.Mesh(orbGeo, orbMat); g.position.copy(e.pos); scene.add(g); MODS.orbs.push({ g, v:new V3(rand(-8, 8), rand(4, 12), rand(-8, 8)), t:0, val:e.kind === 'warden' ? 40 : 15 }); }
+  if (MODS.orbs.length > 160) { const o = MODS.orbs.shift(); scene.remove(o.g); }
+}
+function orbTick(dt) {
+  const mag = modOn('magnet'), R = mag ? 120 : 7;
+  for (let i = MODS.orbs.length - 1; i >= 0; i--) {
+    const o = MODS.orbs[i]; o.t += dt; o.g.rotation.y += dt * 3;
+    const d = o.g.position.distanceTo(P.pos); o.pull = d < R && G.state === 'play';
+    if (o.pull) { MV.v.copy(P.pos).sub(o.g.position).normalize().multiplyScalar(Math.min(90, 20 + (R - d) * 2)); o.v.lerp(MV.v, Math.min(1, 6 * dt)); }
+    else { o.v.multiplyScalar(Math.exp(-1.5 * dt)); o.v.y -= 2 * dt; }
+    o.g.position.addScaledVector(o.v, dt);
+    const fl = floorAt(o.g.position.x, o.g.position.z, o.g.position.y) + .6; if (o.g.position.y < fl) { o.g.position.y = fl; o.v.y = 0; }
+    if (d < 2.6) { const val = o.val * (mag ? 2 : 1); CR.bal += val; crSave(); scorePopup(o.g.position, '+' + val + ' ◈', '#ffc83a'); tone('sine', 1200 + Math.random() * 400, 1800, .05, .02); scene.remove(o.g); MODS.orbs.splice(i, 1); continue; }
+    if (o.t > 40) { scene.remove(o.g); MODS.orbs.splice(i, 1); }
+  }
+}
+function cannonTick(dt) {
+  MODS.cannonTarget = null; if (!modOn('cannon') || !(P.mode === 'suited' || P.heavy) || G.state !== 'play') return;
+  const HL = hitList(); let best = G.lock && HL.includes(G.lock) ? G.lock : null, bd = 320;
+  if (!best) for (const e of HL) { const d = e.pos.distanceTo(P.pos); if (d < bd) { bd = d; best = e; } }
+  MODS.cannonTarget = best; MODS.cannonCD -= dt;
+  if (best && MODS.cannonCD <= 0 && canFight()) {
+    MODS.cannonCD = 1.4; const r = P.heavy ? P.hrig : P.rig, x = r && r._mv && r._mv.cannon && r._mv.cannon[0];
+    const from = x ? x.muzzle.getWorldPosition(new V3()) : P.pos.clone().add(MV.v.set(0, 2, 0));
+    const d = best.pos.clone().addScaledVector(best.vel || MV.v2.set(0, 0, 0), from.distanceTo(best.pos) / 300 * .8).sub(from).normalize();
+    const b = spawnBullet(shellGeo, AS().glow, from, d.multiplyScalar(300), 38 * powW(), 'p', false, 2); b.splash = 7;
+    MODS.cannonKick = true; G.shake = Math.max(G.shake, .12); tone('square', 140, 60, .12, .05);
+  }
+}
+function wakeTick(dt) {
+  const on = modOn('wake') && P.mode === 'suited' && (keys.ShiftLeft || keys.ShiftRight || touch.boost) && P.vel.length() > 40 && G.state === 'play';
+  if (on) { MODS.wakeT = (MODS.wakeT || 0) - dt; if (MODS.wakeT <= 0) { MODS.wakeT = .06; MODS.wake.push({ p:P.pos.clone().add(MV.v.set(0, -.8, 0)), t:2.2 }); } }
+  for (let i = MODS.wake.length - 1; i >= 0; i--) { const w = MODS.wake[i]; w.t -= dt; if (Math.random() < .5) emit(PS, w.p, rand(-1, 1), rand(0, 2), rand(-1, 1), Math.random() < .5 ? 0x5aa8ff : 0xff8a2a, .4); if (w.t <= 0) MODS.wake.splice(i, 1); }
+  if (MODS.wake.length) for (const e of hitList()) for (const w of MODS.wake) if (e.pos.distanceTo(w.p) < 6 + e.r) { damageEnemy(e, 60 * dt * powW(), null, true); break; }
+}
+function wingsK() { if (!modOn('jetwings')) return 1; const r = P.heavy ? P.hrig : P.rig, x = r && r._mv && r._mv.jetwings && r._mv.jetwings[0]; return x && x.open > .7 ? 1.12 : 1; }
+// phoenix: called right before the suit would break
+function modPhoenix() {
+  if (!modOn('phoenix') || MODS.phoenixUsed || P.heavy) return false;
+  MODS.phoenixUsed = true; suitHp = SUIT().hp; frameZones = freshZones(); tintAll(P.rig, frameZones);
+  explode(P.pos, 3, 0xff8a2a); burst(P.pos, 0xffc040, 120, 40, 1.2, false); G.shake = Math.max(G.shake, 1.2); G.fovKick = 14;
+  for (const e of hitList().slice()) if (e.pos.distanceTo(P.pos) < 60) damageEnemy(e, 300 * powW(), null, true);
+  if (typeof slowMo === 'function') slowMo(.3, .6);
+  say('Phoenix core. You are not done yet.', { prio:true });
+  return true;
+}
+// mirror: a bolt stopped by your shield goes back the way it came
+function modMirror(b) {
+  if (!modOn('mirror') || !b.from) return false;
+  const d = b.from.clone().sub(b.pos).normalize();
+  spawnBullet(boltGeo, AS().glow, b.pos.clone(), d.multiplyScalar(420), b.dmg * 2 * powW(), 'p', false, 1.6);
+  return true;
+}
+function mods3Tick(dt) {
+  if (!MODS) return;
+  installTick(dt); orbTick(dt);
+  if (G.state !== 'play') return;
+  modVisTick(dt); cannonTick(dt); wakeTick(dt);
+  if (P.mode !== 'suited') MODS.phoenixUsed = MODS.phoenixUsed && P.mode !== 'pilot' ? MODS.phoenixUsed : false;
+}
 
 /* ================= Voice chat with ORIN / VELA: British voice, push-to-talk, conversation ================= */
 const AIV = { rec:null, on:false, backend:null, hist:[], cap:null, ok:!!(window.SpeechRecognition || window.webkitSpeechRecognition) };
@@ -13011,7 +13172,7 @@ function step(rdt) {
   if (P.rig) syncPilotBody(P.rig, P.armor, P.camo);
   adminTick();
   updateEarthPlus(rdt);
-  updateFeatures(rdt); photoTick(); updateGfx(rdt); netTick(rdt); animTick(rdt); rescueTick(rdt); updateGfx2(); solTick(rdt); heavyTick(rdt); modTick(rdt); modFxTick(rdt); cineTick(rdt); libTick(rdt); detailTick(rdt); questTick(rdt); shardTick(rdt); seaTick(rdt); acctTick(rdt); saTick(rdt);
+  updateFeatures(rdt); photoTick(); updateGfx(rdt); netTick(rdt); animTick(rdt); rescueTick(rdt); updateGfx2(); solTick(rdt); heavyTick(rdt); modTick(rdt); modFxTick(rdt); mods3Tick(rdt); cineTick(rdt); libTick(rdt); detailTick(rdt); questTick(rdt); shardTick(rdt); seaTick(rdt); acctTick(rdt); saTick(rdt);
 }
 function loop(now) {
   requestAnimationFrame(loop);
