@@ -404,7 +404,7 @@ details summary{cursor:pointer;color:var(--cyan);font-size:12px;letter-spacing:.
       <div class="cta">
         <button class="go chamfer" id="launch">LAUNCH</button>
         <button class="ghost" id="menuOnline" type="button">PLAY ONLINE · with friends</button>
-        <span class="label" id="buildTag" style="opacity:.7">Build 15 Oct 2026 · ADD-ONS 3</span>
+        <span class="label" id="buildTag" style="opacity:.7">Build 16 Oct 2026 · BRAIN FIX</span>
         <button class="ghost" id="creditsBtn">About &amp; credits</button>
         <button class="ghost" id="menuCheat">Controls</button>
         <button class="ghost touch-only" id="menuPanel">Control panel</button>
@@ -6354,6 +6354,7 @@ function runCommand(raw) {
   const t = raw.toLowerCase().replace(/[^a-z0-9 \-]/g, ' ').replace(/\s+/g, ' ').trim();
   if (!t) return;
   chatLog('> ' + raw, true);
+  if (!AIV.quiet && brainWants(t)) { aiChat(raw); return; }
   const has = (...w) => w.some(x => t.includes(x));
   if (has('help', 'commands')) { chatLog(HELP); return; }
   if (has('pilot', 'bots', 'players')) {
@@ -11628,14 +11629,14 @@ for (const id of ['voiceBtn', 'voiceBtn2']) if ($(id)) { $(id).setAttribute('ari
 /* ================= On-device AI: a small language model that runs free in the browser on the GPU (WebLLM) ================= */
 const BRAIN = { engine:null, state:'off', pct:0, model:'', busy:false, err:'' };
 const BRAIN_MODELS = [
-  { id:'Llama-3.2-1B-Instruct-q4f16_1-MLC', label:'standard', mb:880 },
-  { id:'Qwen2.5-0.5B-Instruct-q4f16_1-MLC', label:'light', mb:400 },
+  { id:'Qwen2.5-0.5B-Instruct-q4f16_1-MLC', label:'light', mb:270 },
+  { id:'SmolLM2-360M-Instruct-q4f16_1-MLC', label:'tiny', mb:200 },
 ];
 const brainSupported = () => typeof navigator !== 'undefined' && !!navigator.gpu;
-function brainPick() { const low = isTouch || (navigator.deviceMemory && navigator.deviceMemory < 8); return low ? [BRAIN_MODELS[1], BRAIN_MODELS[0]] : BRAIN_MODELS.slice(); }
+function brainPick() { return BRAIN_MODELS.slice(); }
 function brainLabel() {
   if (!brainSupported()) return 'On-device AI: needs WebGPU';
-  return { off:'On-device AI: off · free', loading:`On-device AI: loading ${BRAIN.pct}%`, ready:'On-device AI: on', error:'On-device AI: failed, tap to retry' }[BRAIN.state];
+  return { off:'On-device AI: off · free', loading:`On-device AI: downloading ${BRAIN.pct}%…`, ready:'On-device AI: on', error:'On-device AI: failed, tap to retry' }[BRAIN.state];
 }
 function brainBtn() { const b = $('pauseBrain'); if (b) b.textContent = brainLabel(); }
 async function brainLoad(quiet) {
@@ -11647,20 +11648,21 @@ async function brainLoad(quiet) {
   let lib;
   try { lib = await import('https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm@0.2.84/+esm'); }
   catch (e) { BRAIN.state = 'error'; BRAIN.err = 'could not load the AI library'; brainBtn(); say('I could not fetch the AI library. Check the connection and try again.', { prio:true }); return; }
-  for (const m of brainPick()) {
+  try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch (e) {}
+  for (const m of brainPick()) for (let attempt = 0; attempt < 3; attempt++) {
     try {
-      BRAIN.engine = await lib.CreateMLCEngine(m.id, { initProgressCallback:p => { BRAIN.pct = Math.round((p.progress || 0) * 100); brainBtn(); if (G.state === 'play' && !quiet) aiCaption(`${AI.name} brain download ${BRAIN.pct}%`, 2); } });
+      BRAIN.engine = await lib.CreateMLCEngine(m.id, { initProgressCallback:p => { BRAIN.pct = Math.round((p.progress || 0) * 100); brainBtn(); if (!quiet) aiCaption(`${AI.name} brain download ${BRAIN.pct}%`, 2); } });
       BRAIN.model = m.id; BRAIN.state = 'ready'; brainBtn();
       say(quiet ? 'On-device brain online.' : 'Right, that is better. I can think for myself now. Ask me anything.', { prio:true });
       return;
-    } catch (e) { BRAIN.err = String(e && e.message || e).slice(0, 120); }
+    } catch (e) { BRAIN.err = String(e && e.message || e).slice(0, 160); if (!/network|fetch|Cache/i.test(BRAIN.err)) break; await new Promise(r => setTimeout(r, 1500)); }
   }
   BRAIN.state = 'error'; brainBtn();
   say('The on-device brain would not start on this machine. I will stick to my usual replies.', { prio:true });
 }
 function brainSystem() {
   return `You are ${AI.name}, the AI built into a flight suit in Skywarden, an original video game. You speak like a calm, witty British butler-engineer: dry humour, polite, British spelling. You are not any character from films or comics.
-Keep every reply to one or two short sentences, under 35 words, spoken aloud. Never use lists, emojis or stage directions. ${typeof acctFirst === 'function' && acctFirst() ? 'The player is called ' + acctFirst() + '; use their name now and then.' : 'Address the player as pilot.'}${typeof PROF !== 'undefined' && PROF.prefs.like ? ' They enjoy ' + LIKES[PROF.prefs.like] + '.' : ''} The player may be young, so keep everything friendly and suitable for all ages.
+Keep every reply to one or two short sentences, under 35 words, spoken aloud. Never use lists, emojis or stage directions. ${typeof acctFirst === 'function' && acctFirst() ? 'The player is called ' + acctFirst() + '; use their name now and then.' : 'Address the player as pilot.'}${typeof PROF !== 'undefined' && PROF.prefs.like ? ' They enjoy ' + LIKES[PROF.prefs.like] + '.' : ''} The player may be young, so keep everything friendly and suitable for all ages. Never lecture about safety. Stay in character as the suit's AI; you are in the game world with the pilot.
 Live game state: ${JSON.stringify(aiCtx())}.
 Things the pilot can do: press G to suit up, B to call the suit, U for the GOLIATH heavy shell, 8 for add-ons, 9 for the orbital lance, 4 for the star map, 5 for sky races, Enter to type commands. The Suit Library with every suit is by the Cliffhouse on the south coast. Redrock Canyon in the far west has a mining village.`;
 }
@@ -11672,7 +11674,7 @@ async function brainReply(raw) {
   msgs.push({ role:'user', content:String(raw).slice(0, 300) });
   aiCaption(`${AI.name} is thinking…`, 6);
   try {
-    const chunks = await BRAIN.engine.chat.completions.create({ messages:msgs, temperature:.75, max_tokens:80, stream:true });
+    const chunks = await BRAIN.engine.chat.completions.create({ messages:msgs, temperature:.7, max_tokens:70, stream:true });
     let out = '';
     for await (const c of chunks) { out += (c.choices[0] && c.choices[0].delta.content) || ''; aiCaption(out.trim() || '…', 6); }
     out = out.replace(/\s+/g, ' ').replace(/^["']|["']$/g, '').trim();
@@ -11690,6 +11692,14 @@ async function brainReply(raw) {
   b.addEventListener('click', () => { resume(); if (BRAIN.state === 'ready') say(`On-device brain is running: ${BRAIN.model.split('-q4')[0]}.`, { prio:true }); else brainLoad(false); });
   let want = false; try { want = localStorage.getItem('sw_brain') === '1'; } catch (e) {}
   if (want && brainSupported() && !navigator.webdriver) setTimeout(() => brainLoad(true), 15000);
+}
+
+// with the brain on, chatty sentences go to the AI instead of being mistaken for game commands
+const BRAIN_CMD = /^(suit up|deploy|call|summon|eject|scan|status|warp|go to|fly to|launch|drones?|weather|rain|storm|day|night|race|photo|flares?|supersonic|sentry|goliath|repair|reassemble|helmet|face|power|space|orbit|shield|burst|roll|brake|remove|detach|pilots?|hunters?|first person|third person|star map|map|vent)\b/;
+function brainWants(t) {
+  if (BRAIN.state !== 'ready' || !t) return false;
+  if (BRAIN_CMD.test(t) || SUITS.some(s => t === s.name.toLowerCase() || t === 'wear ' + s.name.toLowerCase())) return false;
+  return /\b(what|why|how|who|where|when|which|do you|can you|could you|would you|are you|tell me|i think|i feel|i like|i love|i am|im|you are|youre|lets|joke|story|favourite|favorite|thank|hello|hi|hey)\b/.test(t) || t.split(' ').length >= 5;
 }
 
 /* ================= Quests: meet people around the map, earn frames, and the final shard-gauntlet frame SINGULARITY ================= */
