@@ -404,7 +404,7 @@ details summary{cursor:pointer;color:var(--cyan);font-size:12px;letter-spacing:.
       <div class="cta">
         <button class="go chamfer" id="launch">LAUNCH</button>
         <button class="ghost" id="menuOnline" type="button">PLAY ONLINE · with friends</button>
-        <span class="label" id="buildTag" style="opacity:.7">Build 16 Oct 2026 · BRAIN FIX</span>
+        <span class="label" id="buildTag" style="opacity:.7">Build 24 Oct 2026 · LESS CHAT</span>
         <button class="ghost" id="creditsBtn">About &amp; credits</button>
         <button class="ghost" id="menuCheat">Controls</button>
         <button class="ghost touch-only" id="menuPanel">Control panel</button>
@@ -1990,6 +1990,7 @@ const AI = { name:'ORIN', pitch:.94, rate:.97 };
 let voiceOn = (() => { try { return localStorage.getItem('sw_voice') !== '0'; } catch (e) { return true; } })(), voiceURI = '';
 const comms = { queue:[], cur:null, shown:0, hold:0, cool:{} };
 function say(text, opt = {}) {
+  if (!opt.prio && !(opt.key && (opt.cd || 8) <= 3)) { if (G.time < (comms.quietUntil || 0) || comms.cur || comms.queue.length) return; comms.quietUntil = G.time + 12; }
   if (opt.key) { if (comms.cool[opt.key] && G.time < comms.cool[opt.key]) return; comms.cool[opt.key] = G.time + (opt.cd || 8); }
   if (opt.prio) { comms.queue.unshift(text); comms.cur = null; }
   else { comms.queue.push(text); if (comms.queue.length > 3) comms.queue.splice(0, comms.queue.length - 3); }
@@ -11643,7 +11644,7 @@ async function brainLoad(quiet) {
   if (BRAIN.state === 'loading' || BRAIN.state === 'ready') return;
   if (!brainSupported()) { say('On-device AI needs WebGPU. Chrome or Edge on a laptop, or Safari 26, will do it.', { prio:true }); return; }
   BRAIN.state = 'loading'; BRAIN.pct = 0; brainBtn();
-  if (!quiet) say(`Downloading my brain. It is free and runs on your graphics card. Roughly ${brainPick()[0].mb} megabytes, only the first time.`, { prio:true });
+  if (!quiet) say(`Downloading my brain, about ${brainPick()[0].mb} megabytes.`, { prio:true });
   try { localStorage.setItem('sw_brain', '1'); } catch (e) {}
   let lib;
   try { lib = await import('https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm@0.2.84/+esm'); }
@@ -11653,7 +11654,7 @@ async function brainLoad(quiet) {
     try {
       BRAIN.engine = await lib.CreateMLCEngine(m.id, { initProgressCallback:p => { BRAIN.pct = Math.round((p.progress || 0) * 100); brainBtn(); if (!quiet) aiCaption(`${AI.name} brain download ${BRAIN.pct}%`, 2); } });
       BRAIN.model = m.id; BRAIN.state = 'ready'; brainBtn();
-      say(quiet ? 'On-device brain online.' : 'Right, that is better. I can think for myself now. Ask me anything.', { prio:true });
+      say(quiet ? 'Brain online.' : 'Brain online. Ask me anything.', { prio:true });
       return;
     } catch (e) { BRAIN.err = String(e && e.message || e).slice(0, 160); if (!/network|fetch|Cache/i.test(BRAIN.err)) break; await new Promise(r => setTimeout(r, 1500)); }
   }
@@ -11662,7 +11663,7 @@ async function brainLoad(quiet) {
 }
 function brainSystem() {
   return `You are ${AI.name}, the AI built into a flight suit in Skywarden, an original video game. You speak like a calm, witty British butler-engineer: dry humour, polite, British spelling. You are not any character from films or comics.
-Keep every reply to one or two short sentences, under 35 words, spoken aloud. Never use lists, emojis or stage directions. ${typeof acctFirst === 'function' && acctFirst() ? 'The player is called ' + acctFirst() + '; use their name now and then.' : 'Address the player as pilot.'}${typeof PROF !== 'undefined' && PROF.prefs.like ? ' They enjoy ' + LIKES[PROF.prefs.like] + '.' : ''} The player may be young, so keep everything friendly and suitable for all ages. Never lecture about safety. Stay in character as the suit's AI; you are in the game world with the pilot.
+Reply in ONE short sentence, under 15 words. Be brief and punchy. Never explain more than asked. Never ask a follow-up question unless needed. Never use lists, emojis or stage directions. ${typeof acctFirst === 'function' && acctFirst() ? 'The player is called ' + acctFirst() + '; use their name now and then.' : 'Address the player as pilot.'}${typeof PROF !== 'undefined' && PROF.prefs.like ? ' They enjoy ' + LIKES[PROF.prefs.like] + '.' : ''} The player may be young, so keep everything friendly and suitable for all ages. Never lecture about safety. Stay in character as the suit's AI; you are in the game world with the pilot.
 Live game state: ${JSON.stringify(aiCtx())}.
 Things the pilot can do: press G to suit up, B to call the suit, U for the GOLIATH heavy shell, 8 for add-ons, 9 for the orbital lance, 4 for the star map, 5 for sky races, Enter to type commands. The Suit Library with every suit is by the Cliffhouse on the south coast. Redrock Canyon in the far west has a mining village.`;
 }
@@ -11674,11 +11675,12 @@ async function brainReply(raw) {
   msgs.push({ role:'user', content:String(raw).slice(0, 300) });
   aiCaption(`${AI.name} is thinking…`, 6);
   try {
-    const chunks = await BRAIN.engine.chat.completions.create({ messages:msgs, temperature:.7, max_tokens:70, stream:true });
+    const chunks = await BRAIN.engine.chat.completions.create({ messages:msgs, temperature:.6, max_tokens:32, stream:true });
     let out = '';
     for await (const c of chunks) { out += (c.choices[0] && c.choices[0].delta.content) || ''; aiCaption(out.trim() || '…', 6); }
     out = out.replace(/\s+/g, ' ').replace(/^["']|["']$/g, '').trim();
-    const cut = out.match(/^(.{20,}?[.!?])\s(.{10,}?[.!?])/); if (out.length > 220 && cut) out = cut[1] + ' ' + cut[2];
+    const first = out.match(/^(.{8,}?[.!?])(\s|$)/); if (first) out = first[1];
+    if (out.length > 120) out = out.slice(0, 120).replace(/\s\S*$/, '') + '.';
     if (!out) out = localReply(String(raw).toLowerCase());
     AIV.hist.push({ u:String(raw).slice(0, 200), a:out }); if (AIV.hist.length > 10) AIV.hist.shift();
     say(out, { prio:true });
