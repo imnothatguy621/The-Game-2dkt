@@ -1,6 +1,6 @@
 // Skywarden offline support: keeps the game and its fonts on the device so it runs with no connection.
-const VERSION = 'sw-2026-10-24a';
-const CORE = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png'];
+const VERSION = 'sw-2026-11-03a';
+const CORE = ['./', './index.html', './skywarden.html', './manifest.webmanifest', './icon-192.png', './icon-512.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(VERSION).then(c => c.addAll(CORE)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== VERSION && k.startsWith('sw-')).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
 self.addEventListener('fetch', e => {
@@ -9,7 +9,7 @@ self.addEventListener('fetch', e => {
   if (/huggingface\.co|hf\.co|raw\.githubusercontent\.com/.test(u.host)) return;   // the on-device AI keeps its own model cache
   // the page itself: try the network first so updates arrive, fall back to the saved copy offline
   if (r.mode === 'navigate') {
-    e.respondWith(fetch(r).then(res => { const cp = res.clone(); caches.open(VERSION).then(c => c.put('./', cp)); return res; }).catch(() => caches.match('./').then(m => m || caches.match('./index.html'))));
+    e.respondWith(fetch(r).then(res => { const cp = res.clone(); caches.open(VERSION).then(c => c.put(r, cp)); return res; }).catch(() => caches.match(r, { ignoreSearch:true }).then(m => m || caches.match('./index.html'))));
     return;
   }
   // everything else (icons, fonts, libraries): saved copy first, refreshed in the background

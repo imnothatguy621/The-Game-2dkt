@@ -1,6 +1,8 @@
-# Skywarden
+# Kickoff Rivals
 
-The whole game is one file: index.html (three.js r128 is built in).
+The main game is one file: index.html, an original 11-a-side football game (three.js r128 is built in). It's made for phones and tablets first.
+
+Backup: skywarden.html is the previous game, Skywarden, kept as is. To switch back, rename skywarden.html to index.html.
 
 ## Deploy on Vercel
 1. Put index.html (and optionally vercel.json) at the TOP LEVEL of your GitHub repo.
