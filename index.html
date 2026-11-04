@@ -3043,10 +3043,11 @@ async function netClient() { await loadSupabase(); if (!NET.client) NET.client =
 const CODE_CH = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const newCode = () => Array.from({ length:4 }, () => CODE_CH[(Math.random() * CODE_CH.length) | 0]).join('');
 function netSend(event, payload) { if (NET.ch) NET.ch.send({ type:'broadcast', event, payload }); }
-function netLeave() { try { netSend('bye', {}); } catch (e) {} try { if (NET.ch) NET.client.removeChannel(NET.ch); } catch (e) {} NET.ch = null; NET.role = null; S.net = null; clearInterval(NET.wait); }
+function netLeave() { clearInterval(NET.hb); try { netSend('bye', {}); } catch (e) {} try { if (NET.ch) NET.client.removeChannel(NET.ch); } catch (e) {} NET.ch = null; NET.role = null; S.net = null; clearInterval(NET.wait); }
 async function netOpen(code, handlers) {
   const client = await netClient();
   const ch = client.channel('kr-room-' + code, { config:{ broadcast:{ self:false, ack:false } } });
+  handlers.hb = handlers.hb || (() => {});
   for (const ev in handlers) ch.on('broadcast', { event:ev }, m => { NET.lastMsg = performance.now(); handlers[ev](m.payload || {}); });
   ch.on('broadcast', { event:'bye' }, () => { if (S.net) { fx('banner', 'OPPONENT LEFT', 'Match ended', 3); setTimeout(() => { netLeave(); toMenuState(); showHome(); }, 2500); } });
   await new Promise((res, rej) => { const to = setTimeout(() => rej(new Error('Could not reach the game server.')), 12000); ch.subscribe(st => { if (st === 'SUBSCRIBED') { clearTimeout(to); res(); } else if (st === 'CHANNEL_ERROR' || st === 'TIMED_OUT') { clearTimeout(to); rej(new Error('Connection problem (' + st + ').')); } }); });
@@ -3112,6 +3113,7 @@ async function joinRoom(code) {
 function startOnline(cfg, role) {
   const host = role === 'host';
   S.net = { role, hostTick, guestTick, sendEnd:res => netSend('end', res) };
+  clearInterval(NET.hb); NET.hb = setInterval(() => netSend('hb', {}), 2000);
   NET.snaps = []; NET.acc = 0; NET.inAcc = 0; NET.offset = null; NET.lastIn = '';
   CUR_MATCH = { kind:'online' };
   startMatch(Object.assign({}, cfg, { ctl:host ? ['local', 'remote'] : ['remote', 'local'], me:host ? 0 : 1, op:cfg.op }));
@@ -3127,7 +3129,7 @@ function applyRemoteInput(p) {
 }
 const r2 = v => Math.round(v * 100) / 100;
 function hostTick(dt) {
-  if (performance.now() - NET.lastMsg > 9000 && S.state !== 'full') { fx('banner', 'CONNECTION LOST', '', 3); setTimeout(() => { netLeave(); toMenuState(); showHome(); }, 2500); NET.lastMsg = 1e12; return; }
+  if (performance.now() - NET.lastMsg > 20000 && S.state !== 'full') { fx('banner', 'CONNECTION LOST', '', 3); setTimeout(() => { netLeave(); toMenuState(); showHome(); }, 2500); NET.lastMsg = 1e12; return; }
   NET.acc += dt; if (NET.acc < .1) return; NET.acc = 0;
   const flat = [];
   for (const p of S.players) flat.push(r2(p.pos.x), r2(p.pos.z), r2(p.vel.x), r2(p.vel.z), r2(p.face), (p.slide > 0 ? 1 : 0) | (p.dive > 0 ? 2 : 0) | (p.diveDir > 0 ? 4 : 0) | (p.celeb > 0 ? 8 : 0) | (p.kickAnim > 0 ? 16 : 0) | (p.stun > 0 ? 32 : 0));
@@ -3149,7 +3151,7 @@ function guestSnap(p) {
   if (p.pw) { S.teams[1].power = p.pw[0]; S.teams[1].charging = !!p.pw[1]; }
 }
 function guestTick(dt, F) {
-  if (performance.now() - NET.lastMsg > 9000 && S.state !== 'full') { fx('banner', 'CONNECTION LOST', '', 3); setTimeout(() => { netLeave(); toMenuState(); showHome(); }, 2500); NET.lastMsg = 1e12; return; }
+  if (performance.now() - NET.lastMsg > 20000 && S.state !== 'full') { fx('banner', 'CONNECTION LOST', '', 3); setTimeout(() => { netLeave(); toMenuState(); showHome(); }, 2500); NET.lastMsg = 1e12; return; }
   // send input
   const edges = ACTS.filter(a => F.p[a]);
   const msg = { x:r2(F.x), z:r2(F.z), sh:F.h.shoot ? 1 : 0, sp:F.h.sprint ? 1 : 0, pr:F.h.press ? 1 : 0 };
