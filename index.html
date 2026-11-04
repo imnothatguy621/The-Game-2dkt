@@ -5495,7 +5495,9 @@ function boneTurn(root, bone, ax, ay, az, angle) {
 }
 
 /* ================= rigged player model (Mixamo-rigged mannequin from the three.js examples) ================= */
-const XBOT = { ready:false, scene:null, clips:{}, waiters:[] };
+const XBOT = { ready:false, scene:null, clips:{}, waiters:[], axes:{} };
+const _tq = new THREE.Quaternion();
+function bt(B, name, axis, angle) { const b = B[name], ax = XBOT.axes[name]; if (!b || !ax || !angle) return; _tq.setFromAxisAngle(ax[axis], angle); b.quaternion.premultiply(_tq); }
 (function loadXbot() {
   if (typeof XBOT_B64 === 'undefined' || !THREE.GLTFLoader || !THREE.SkeletonUtils) return;
   try {
@@ -5503,7 +5505,13 @@ const XBOT = { ready:false, scene:null, clips:{}, waiters:[] };
     for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
     new THREE.GLTFLoader().parse(buf.buffer, '', g => {
       XBOT.scene = g.scene;
-      for (const a of g.animations) XBOT.clips[a.name] = a;
+      // drop tracks the camera never sees (fingers, scale, non-root positions): far less work per frame
+      const skip = /Thumb|Index|Middle|Ring|Pinky|Eye|HeadTop|Toe_End/;
+      for (const a of g.animations) { a.tracks = a.tracks.filter(t => !skip.test(t.name) && !t.name.endsWith('.scale') && (!t.name.endsWith('.position') || /Hips/.test(t.name))); XBOT.clips[a.name] = a; }
+      // pre-compute each bone's character-space axes expressed in its parent's bind frame
+      g.scene.updateMatrixWorld(true);
+      const pq = new THREE.Quaternion();
+      g.scene.traverse(o => { if (o.isBone && o.parent) { o.parent.getWorldQuaternion(pq); pq.invert(); const nm = o.name.replace('mixamorig', '').replace(':', ''); XBOT.axes[nm] = [new THREE.Vector3(1, 0, 0).applyQuaternion(pq).normalize(), new THREE.Vector3(0, 1, 0).applyQuaternion(pq).normalize(), new THREE.Vector3(0, 0, 1).applyQuaternion(pq).normalize()]; } });
       XBOT.ready = true;
       const w = XBOT.waiters.splice(0); w.forEach(f => f());
     }, e => { console.warn('model load failed', e); });
@@ -5549,43 +5557,42 @@ function animateSkinned(p, dt) {
   A.walk.time = (A.run.time / rd) * wd;
   // procedural layers on top of the animation
   g.model.position.y = 0; g.model.rotation.set(0, 0, 0);
-  g.root.updateMatrixWorld(true);
   const m = g.model, k = clamp(sp / 8.5, 0, 1);
-  if (k > .5) boneTurn(m, B.Spine, 1, 0, 0, (k - .5) * .35);
+  if (k > .5) bt(B, 'Spine', 0, (k - .5) * .35);
   if (g.head !== false && B.Head && S.state !== 'grounds' && typeof ball !== 'undefined') {
     let yaw = Math.atan2(ball.pos.x - p.pos.x, ball.pos.z - p.pos.z) - p.face; yaw = Math.atan2(Math.sin(yaw), Math.cos(yaw));
     p._hy = (p._hy || 0) + (clamp(yaw, -1, 1) - (p._hy || 0)) * Math.min(1, dt * 6);
-    boneTurn(m, B.Neck, 0, 1, 0, p._hy * .5); boneTurn(m, B.Head, 0, 1, 0, p._hy * .5);
+    bt(B, 'Neck', 1, p._hy * .5); bt(B, 'Head', 1, p._hy * .5);
   }
   if (p.role === 'GK' && sp < 2 && !(p.dive > 0) && typeof ball !== 'undefined' && d2(p.pos, ball.pos) < 24 && S.state !== 'grounds') {
-    m.position.y = -.12; boneTurn(m, B.Spine, 1, 0, 0, .35);
-    boneTurn(m, B.LeftUpLeg, 1, 0, 0, -.45); boneTurn(m, B.RightUpLeg, 1, 0, 0, -.45); boneTurn(m, B.LeftLeg, 1, 0, 0, .8); boneTurn(m, B.RightLeg, 1, 0, 0, .8);
-    boneTurn(m, B.LeftArm, 0, 0, 1, .55); boneTurn(m, B.RightArm, 0, 0, 1, -.55);
+    m.position.y = -.12; bt(B, 'Spine', 0, .35);
+    bt(B, 'LeftUpLeg', 0, -.45); bt(B, 'RightUpLeg', 0, -.45); bt(B, 'LeftLeg', 0, .8); bt(B, 'RightLeg', 0, .8);
+    bt(B, 'LeftArm', 2, .55); bt(B, 'RightArm', 2, -.55);
   }
   if (p.kickAnim > 0) {
     const t = 1 - p.kickAnim / .3;
     const swing = t < .4 ? .75 * (t / .4) : .75 - 2.1 * ((t - .4) / .6);
-    boneTurn(m, B.RightUpLeg, 1, 0, 0, swing); boneTurn(m, B.RightLeg, 1, 0, 0, t < .4 ? 1.2 * (t / .4) : 1.2 * (1 - (t - .4) / .6));
-    boneTurn(m, B.LeftArm, 0, 0, 1, .7); boneTurn(m, B.RightArm, 0, 0, 1, -.35); boneTurn(m, B.Spine, 0, 1, 0, -.25 * Math.sin(t * Math.PI));
+    bt(B, 'RightUpLeg', 0, swing); bt(B, 'RightLeg', 0, t < .4 ? 1.2 * (t / .4) : 1.2 * (1 - (t - .4) / .6));
+    bt(B, 'LeftArm', 2, .7); bt(B, 'RightArm', 2, -.35); bt(B, 'Spine', 1, -.25 * Math.sin(t * Math.PI));
   }
   if (p.slide > 0) {
-    m.position.y = -.62; boneTurn(m, B.Hips, 1, 0, 0, -1.2);
-    boneTurn(m, B.LeftUpLeg, 1, 0, 0, -.5); boneTurn(m, B.RightUpLeg, 1, 0, 0, .3); boneTurn(m, B.RightLeg, 1, 0, 0, 1.2);
-    boneTurn(m, B.LeftArm, 0, 0, 1, .9); boneTurn(m, B.RightArm, 0, 0, 1, -.9);
+    m.position.y = -.62; bt(B, 'Hips', 0, -1.2);
+    bt(B, 'LeftUpLeg', 0, -.5); bt(B, 'RightUpLeg', 0, .3); bt(B, 'RightLeg', 0, 1.2);
+    bt(B, 'LeftArm', 2, .9); bt(B, 'RightArm', 2, -.9);
   }
   if (p.dive > 0) {
     const t = Math.min(1, (.7 - p.dive) * 3);
     m.position.y = .35 * Math.sin(t * Math.PI);
-    boneTurn(m, B.Hips, 0, 0, 1, -p.diveDir * Math.sin(t * Math.PI / 2) * 1.35);
-    boneTurn(m, B.LeftArm, 0, 0, 1, 2.4); boneTurn(m, B.RightArm, 0, 0, 1, -2.4);
+    bt(B, 'Hips', 2, -p.diveDir * Math.sin(t * Math.PI / 2) * 1.35);
+    bt(B, 'LeftArm', 2, 2.4); bt(B, 'RightArm', 2, -2.4);
   }
   if (p.celeb > 0) {
     const v = (p.i || 0) % 3, tt = performance.now() / 1000;
-    if (v === 0) { m.position.y = Math.abs(Math.sin(tt * 7)) * .3; boneTurn(m, B.LeftArm, 0, 0, 1, 2.5); boneTurn(m, B.RightArm, 0, 0, 1, -2.5); }
-    else if (v === 1) { boneTurn(m, B.LeftArm, 0, 0, 1, 1.25); boneTurn(m, B.RightArm, 0, 0, 1, -1.25); boneTurn(m, B.Hips, 0, 0, 1, Math.sin(tt * 2.5) * .25); }
-    else { if (sp < 2) { m.position.y = -.42; boneTurn(m, B.LeftUpLeg, 1, 0, 0, .3); boneTurn(m, B.RightUpLeg, 1, 0, 0, .3); boneTurn(m, B.LeftLeg, 1, 0, 0, 1.7); boneTurn(m, B.RightLeg, 1, 0, 0, 1.7); } boneTurn(m, B.RightArm, 0, 0, 1, -2.6); boneTurn(m, B.Spine, 1, 0, 0, -.35); }
+    if (v === 0) { m.position.y = Math.abs(Math.sin(tt * 7)) * .3; bt(B, 'LeftArm', 2, 2.5); bt(B, 'RightArm', 2, -2.5); }
+    else if (v === 1) { bt(B, 'LeftArm', 2, 1.25); bt(B, 'RightArm', 2, -1.25); bt(B, 'Hips', 2, Math.sin(tt * 2.5) * .25); }
+    else { if (sp < 2) { m.position.y = -.42; bt(B, 'LeftUpLeg', 0, .3); bt(B, 'RightUpLeg', 0, .3); bt(B, 'LeftLeg', 0, 1.7); bt(B, 'RightLeg', 0, 1.7); } bt(B, 'RightArm', 2, -2.6); bt(B, 'Spine', 0, -.35); }
   }
-  if (p.stun > 0 && !(p.slide > 0)) boneTurn(m, B.Spine, 1, 0, 0, -.3);
+  if (p.stun > 0 && !(p.slide > 0)) bt(B, 'Spine', 0, -.3);
 }
 
 'use strict';
