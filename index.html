@@ -1863,6 +1863,8 @@ function guestEnd(res) {
   fx('whistle', 3, true);
   showFullTime(res);
 }
+// keep the free Supabase project awake: one tiny request per device per day
+(() => { try { const d = new Date().toISOString().slice(0, 10); if (localStorage.getItem('kr_ping') === d || !navigator.onLine) return; localStorage.setItem('kr_ping', d); fetch(SB_URL + '/rest/v1/', { headers:{ apikey:SB_KEY } }).catch(() => {}); } catch (e) {} })();
 
 /* ================= shared: profile wallet, cards, squad editor, packs ================= */
 const MAX_OVR = 130;
