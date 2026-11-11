@@ -65,11 +65,19 @@
   try {
     const old = PITCH.material.map; PITCH.material.map = pitchTexture2(); if (old) old.dispose();
     PITCH.material.color.setScalar(.95); PITCH.material.roughness = .88; PITCH.material.needsUpdate = true;
-    OUTER.material.color.set(0x2b5a24);
+    OUTER.material.color.set(0x1f4a1b);
+    // the surround grass and the dark track sat a few cm under the pitch; in the post-processing
+    // buffer that showed up as flickering horizontal lines far away, so give them real gaps
+    OUTER.position.y = -0.25;
+    scene.children.forEach(o => { if (o.isMesh && o.geometry && o.geometry.parameters && o.geometry.parameters.width === 220 && o.geometry.parameters.height === 180) o.position.y = -0.8; });
+    PITCH.material.polygonOffset = true; PITCH.material.polygonOffsetFactor = -2; PITCH.material.polygonOffsetUnits = -2;
   } catch (e) { console.warn('pitch2', e); }
 
+  // stop striped self-shadowing on the grass when seen from high up
+  sun.shadow.bias = -.0005; if ('normalBias' in sun.shadow) sun.shadow.normalBias = .02;
+
   /* ---------- 2. richer lighting and colour grade for each time of day ---------- */
-  Object.assign(TOD_PRESETS[0], { hemi:[0xb8c8ff, 0x0c180a, .17], sunI:1.38, fillI:.34, exposure:.86, bloom:.6, tint:[.95, 1, 1.07], sat:.98, con:1.12 });
+  Object.assign(TOD_PRESETS[0], { hemi:[0xb8c8ff, 0x0c180a, .17], sunI:1.38, fillI:.34, exposure:.86, bloom:.45, tint:[.95, 1, 1.07], sat:1.05, con:1.12 });
   Object.assign(TOD_PRESETS[1], { hemi:[0xffcaa0, 0x2a3218, .38], sunI:1.9, fillI:.16, exposure:.9, bloom:.36, tint:[1.08, .99, .9], sat:1.03, con:1.1 });
   Object.assign(TOD_PRESETS[2], { skyTop:0x2160c8, skyHor:0xa8cdf2, fog:0xa9c8e6, hemi:[0xdcecff, 0x3a4a26, .4], sunI:2.15, fillI:.12, exposure:.72, bloom:.1, tint:[1.03, 1, .96], sat:1.0, con:1.14 });
 
