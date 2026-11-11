@@ -6,9 +6,9 @@ def once(s, old, new, label):
     if new in s: return s
     assert s.count(old) == 1, (label, s.count(old))
     return s.replace(old, new)
-def inject(s, js):
-    block = '<!--SOCIAL-START-->\n<script>\n' + js + '\n</script>\n<!--SOCIAL-END-->\n'
-    s = re.sub(r'<!--SOCIAL-START-->.*?<!--SOCIAL-END-->\n', '', s, flags=re.S)
+def inject(s, js, tag='SOCIAL'):
+    block = '<!--' + tag + '-START-->\n<script>\n' + js + '\n</script>\n<!--' + tag + '-END-->\n'
+    s = re.sub(r'<!--' + tag + r'-START-->.*?<!--' + tag + r'-END-->\n', '', s, flags=re.S)
     i = s.rfind('</body>'); return s[:i] + block + s[i:]
 
 # Kickoff Rivals
@@ -19,6 +19,7 @@ s = once(s, "NET.role = 'host'; clearInterval(NET.wait);", "NET.role = 'host'; c
 s = once(s, "label:'Online 1v1 · Room ' + code };", "label:'Online 1v1 · ' + ((window.SOC && SOC.username()) || 'Host') + ' vs ' + (NET.peerName || 'Guest') };", 'label')
 s = once(s, "netSend('join', { team:NET.team, op:ALL[NET.team].admin && ADMIN })", "netSend('join', { team:NET.team, op:ALL[NET.team].admin && ADMIN, name:(window.SOC && SOC.username()) || '' })", 'hello')
 s = once(s, "function netLeave() { clearInterval(NET.hb);", "function netLeave() { NET.peerName = ''; clearInterval(NET.hb);", 'leave')
+s = inject(s, open(os.path.join(R, 'src-gfx', 'kickoff-gfx2.js')).read(), 'GFX2')
 s = inject(s, rd('kickoff.js') + '\n' + rd('social.js'))
 open(p, 'w').write(s)
 
