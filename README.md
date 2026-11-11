@@ -47,3 +47,14 @@ Online multiplayer and the optional Claude backend still need a connection; the 
 in Supabase (row-level security: each player can only read and write their own row). Progress from the device and the account
 are merged on sign-in. Google must be enabled under Supabase → Authentication → Sign In / Providers, with
 https://the-game-2kdt.vercel.app set as the Site URL and allowed redirect.
+
+## Friends, lobbies and one account for both games
+Kickoff Rivals (index.html) and Skywarden (skywarden.html) share one Supabase account: same email, same username.
+Signing in on one page signs you in on the other (same site). The 👥 Friends button (bottom right of the menus) lets players
+add friends by username, accept requests, see who's online and in which game, and invite friends into their lobby.
+An invite to the other game opens that game and joins the room.
+Kickoff's Online screen also has FIND MATCH: it pairs you with anyone else searching; if nobody shows up in 15 seconds you
+play a bot with a made-up username (marked 🤖). Kickoff progress (careers, Road to Success, coins, settings) is saved to the account.
+
+Code lives in src-social/ (social.js is shared, kickoff.js and skywarden.js connect it to each game). After editing, run
+`python3 src-social/build.py` to put it into both pages. Database setup: run src-social/friends.sql once in Supabase → SQL Editor.
