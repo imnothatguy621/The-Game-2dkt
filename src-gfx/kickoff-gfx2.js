@@ -41,8 +41,6 @@
     g.imageSmoothingEnabled = true;
     g.globalCompositeOperation = 'multiply'; g.drawImage(vm, 0, 0, W, H);
     g.globalCompositeOperation = 'source-over'; g.drawImage(vd, 0, 0, W, H);
-    // fine mower lines along the stripes
-    for (let i = 0; i < W / 3; i++) { g.fillStyle = `rgba(${Math.random() < .5 ? '0,0,0' : '230,255,200'},${Math.random() * .035})`; g.fillRect(Math.random() * W, 0, 1, H); }
     // markings: slightly soft, painted-on-grass white
     const X = x => (x + PL) * k, Z = z => (z + PW) * k;
     g.save(); g.shadowColor = 'rgba(255,255,255,.35)'; g.shadowBlur = k * .06;
@@ -94,7 +92,7 @@
     _applyTOD(tod);
     const P = TOD_PRESETS[tod];
     if (POST.grade) { POST.grade.uniforms.uSat.value = P.sat || 1; POST.grade.uniforms.uContrast.value = P.con || 1.07; }
-    BEAMS.forEach(b => { b.visible = HQ && P.glows; b.material.uniforms.uI.value = tod === 0 ? .085 : .04; });
+    BEAMS.forEach(b => { b.visible = HQ && P.glows; b.material.uniforms.uI.value = tod === 0 ? .03 : .014; });
     FLASH.pts.visible = P.glows;
     if (typeof CLOUDS !== 'undefined' && CLOUDS) { CLOUDS.material.color.set(CLOUD_TINT[tod][0]); CLOUDS.material.opacity = CLOUD_TINT[tod][1]; }
   };
@@ -106,7 +104,7 @@
     vertexShader:`varying float vA; varying vec3 vN, vV;
       void main(){ vA = uv.y; vec4 mv = modelViewMatrix * vec4(position, 1.); vN = normalize(normalMatrix * normal); vV = normalize(-mv.xyz); gl_Position = projectionMatrix * mv; }`,
     fragmentShader:`uniform vec3 uCol; uniform float uI; varying float vA; varying vec3 vN, vV;
-      void main(){ float rim = abs(dot(normalize(vN), normalize(vV))); float a = pow(vA, 1.6) * rim * rim * uI; gl_FragColor = vec4(uCol * a, 1.); }`,
+      void main(){ float rim = abs(dot(normalize(vN), normalize(vV))); float a = pow(vA, 2.2) * smoothstep(.05, .45, vA) * rim * rim * uI; gl_FragColor = vec4(uCol * a, 1.); }`,
     transparent:true, depthWrite:false, blending:THREE.AdditiveBlending, side:THREE.DoubleSide, fog:false,
   });
   if (HQ) for (const s of GLOWS) {
