@@ -24,6 +24,9 @@ s = once(s, "hairStyle:look ? (look.style || 0) : (Math.random() * 4) | 0 });", 
 s = inject(s, open(os.path.join(R, 'src-gfx', 'kickoff-body2.js')).read(), 'BODY2')
 s = inject(s, open(os.path.join(R, 'src-gfx', 'kickoff-gfx2.js')).read(), 'GFX2')
 s = once(s, "model.traverse(o => { if (o.isSkinnedMesh) { o.material = mat;", "model.traverse(o => { if (o.isSkinnedMesh) { o.material = (/Joints/.test(o.name) && mat.userData.jointMat) || mat;", 'jointmat')
+s = once(s, "const human = F && p === t.ctrl, ax = want[0] - p.vel.x,", "const human = F && p === t.ctrl; if (typeof movePhys === 'function') movePhys(p, want, human, dt); else { const ax = want[0] - p.vel.x,", 'movephys1')
+s = once(s, "maxA = (human ? 34 : 16) * dt;\n      if (am > maxA) { p.vel.x += ax / am * maxA; p.vel.z += az / am * maxA; } else { p.vel.x = want[0]; p.vel.z = want[1]; }", "maxA = (human ? 34 : 16) * dt;\n      if (am > maxA) { p.vel.x += ax / am * maxA; p.vel.z += az / am * maxA; } else { p.vel.x = want[0]; p.vel.z = want[1]; } }", 'movephys2')
+s = inject(s, open(os.path.join(R, 'src-gfx', 'kickoff-phys.js')).read(), 'PHYS')
 s = inject(s, rd('kickoff.js') + '\n' + rd('social.js'))
 open(p, 'w').write(s)
 

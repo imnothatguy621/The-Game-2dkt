@@ -73,6 +73,53 @@
     PITCH.material.polygonOffset = true; PITCH.material.polygonOffsetFactor = -2; PITCH.material.polygonOffsetUnits = -2;
   } catch (e) { console.warn('pitch2', e); }
 
+  /* close-up grass blades, clumps, colour patches and worn goalmouths; blades fade out with distance */
+  function grassUpgrade(mat, isPitch) {
+    const ob = mat.onBeforeCompile;
+    mat.extensions = Object.assign(mat.extensions || {}, { derivatives:true });
+    mat.onBeforeCompile = function (sh, r) {
+      ob.call(this, sh, r);
+      sh.uniforms.uPL = { value:PL };
+      sh.fragmentShader = sh.fragmentShader.replace('uniform sampler2D uDetail;', 'uniform sampler2D uDetail; uniform float uPL;\n' + `
+        float gh(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+        float gn(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3. - 2. * f);
+          return mix(mix(gh(i), gh(i + vec2(1, 0)), f.x), mix(gh(i + vec2(0, 1)), gh(i + vec2(1, 1)), f.x), f.y); }`)
+      .replace('diffuseColor.rgb *= mix(0.8, 1.16, det);', `diffuseColor.rgb *= mix(0.8, 1.16, det);
+      {
+        vec2 q = vWPos.xz; float dist = length(cameraPosition - vWPos);
+        // large soft colour patches: a little yellower here, a little bluer there
+        float pa = gn(q * .09) * .6 + gn(q * .31) * .4;
+        diffuseColor.rgb *= mix(vec3(1.05, 1.03, .9), vec3(.93, 1., 1.05), pa);
+        // mid-scale clumps, still visible from the broadcast camera
+        float cl = gn(q * 2.3) * .55 + gn(q * 5.7) * .45;
+        diffuseColor.rgb *= mix(1., .9 + .2 * cl, 1. - smoothstep(25., 70., dist));
+        // single blades, stretched along the view so they read as standing grass
+        vec2 vdir = normalize(vd.xz + vec2(1e-4)), side = vec2(-vdir.y, vdir.x);
+        vec2 bq = vec2(dot(q, side) * 95., dot(q, vdir) * 13.);
+        vec2 bq2 = vec2(dot(q, side) * 36., dot(q, vdir) * 6.);
+        // only draw blades the screen can actually resolve (no shimmer when the camera moves)
+        float fp1 = max(fwidth(bq.x), fwidth(bq.y) * 1.5), fp2 = max(fwidth(bq2.x), fwidth(bq2.y) * 1.5);
+        float bl = gh(floor(bq)), tip = fract(bq.y);
+        float blade1 = mix(.72, 1.22, bl) * mix(.88, 1.07, tip);
+        float blade2 = mix(.84, 1.12, gh(floor(bq2)));
+        diffuseColor.rgb *= mix(1., blade1, 1. - smoothstep(.6, 1.3, fp1));
+        diffuseColor.rgb *= mix(1., blade2, 1. - smoothstep(.6, 1.3, fp2));
+        diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(1.12, 1.05, .8), (1. - smoothstep(.6, 1.3, fp1)) * step(.82, bl) * tip * .6);   // sun-bleached tips
+        ${isPitch ? `
+        // worn turf in the goalmouths, the penalty spots and the centre spot
+        float ax = abs(q.x);
+        float wear = exp(-pow((ax - (uPL - 3.)) / 2.6, 2.) - pow(q.y / 3.4, 2.)) * .9
+                   + exp(-pow((ax - (uPL - 11.)) / 1.1, 2.) - pow(q.y / 1.1, 2.)) * .5
+                   + exp(-dot(q, q) / 1.6) * .45;
+        wear *= .55 + .7 * gn(q * 3.1);
+        vec3 worn = vec3(dot(diffuseColor.rgb, vec3(.33))) * vec3(1.18, 1.02, .66);
+        diffuseColor.rgb = mix(diffuseColor.rgb, worn, clamp(wear, 0., .75));` : ''}
+      }`);
+    };
+    mat.needsUpdate = true;
+  }
+  try { grassUpgrade(PITCH.material, true); grassUpgrade(OUTER.material, false); } catch (e) { console.warn('grass', e); }
+
   // stop striped self-shadowing on the grass when seen from high up
   sun.shadow.bias = -.0005; if ('normalBias' in sun.shadow) sun.shadow.normalBias = .02;
 
