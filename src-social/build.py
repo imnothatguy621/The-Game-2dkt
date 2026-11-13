@@ -19,6 +19,8 @@ s = once(s, "NET.role = 'host'; clearInterval(NET.wait);", "NET.role = 'host'; c
 s = once(s, "label:'Online 1v1 · Room ' + code };", "label:'Online 1v1 · ' + ((window.SOC && SOC.username()) || 'Host') + ' vs ' + (NET.peerName || 'Guest') };", 'label')
 s = once(s, "netSend('join', { team:NET.team, op:ALL[NET.team].admin && ADMIN })", "netSend('join', { team:NET.team, op:ALL[NET.team].admin && ADMIN, name:(window.SOC && SOC.username()) || '' })", 'hello')
 s = once(s, "function netLeave() { clearInterval(NET.hb);", "function netLeave() { NET.peerName = ''; clearInterval(NET.hb);", 'leave')
+s = once(s, "const boots = '#' + (look ? BOOTS[look.boot] : BOOTS[(Math.random() * 5) | 0])", "const boots = '#' + (look ? BOOTS[look.boot] : BOOTS[(Math.random() * BOOTS.length) | 0])", 'bootsrand')
+s = once(s, "hairStyle:look ? (look.style || 0) : (Math.random() * 4) | 0 });", "hairStyle:look ? (look.style || 0) : (Math.random() * 6) | 0 });", 'hair6')
 s = inject(s, open(os.path.join(R, 'src-gfx', 'kickoff-body2.js')).read(), 'BODY2')
 s = inject(s, open(os.path.join(R, 'src-gfx', 'kickoff-gfx2.js')).read(), 'GFX2')
 s = once(s, "model.traverse(o => { if (o.isSkinnedMesh) { o.material = mat;", "model.traverse(o => { if (o.isSkinnedMesh) { o.material = (/Joints/.test(o.name) && mat.userData.jointMat) || mat;", 'jointmat')
