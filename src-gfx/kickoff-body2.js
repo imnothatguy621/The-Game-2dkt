@@ -15,7 +15,7 @@
         vec3 p0 = position;
         // slimmer hips and shorts: pull in towards the body's centre line between the waist and mid-thigh
         float w = smoothstep(.6, .72, p0.y) * (1. - smoothstep(.94, 1.06, p0.y));
-        transformed.xz *= 1. - .13 * w;
+        transformed.xz *= 1. - .06 * w;
         ${joints ? `
         // joint balls: sink them into the body so knees, elbows and shoulders stop looking like doll joints
         transformed -= normal * .024;
