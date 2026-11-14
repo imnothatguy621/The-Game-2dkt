@@ -1,21 +1,33 @@
 /* Kickoff Rivals: realistic ball flight, bounces, player momentum, and a crowd-noise switch.
-   Ball in the air now has proper air drag, topspin dip on driven shots, backspin float on lofted balls
-   and a knuckle wobble on some hard, spinless shots. Every lofted kick is re-aimed so it still reaches
-   the same spot (and a shot still crosses the goal line at the same height and time) the AI planned for,
-   so passing and shooting accuracy stay the same while the flight looks real. */
+   The ball in the air follows the drag + Magnus-effect model from Johan Forslund's football-physics
+   simulation (github.com/johanforslund/football-physics): quadratic air drag  F = ½·ρ·Cd·A·|v|·v  and a
+   Magnus lift from a full 3D spin vector, with lift coefficient  Cl = s·|ω|·r / |v|.  So curlers bend,
+   driven shots dip with topspin, lofted balls float on backspin, and the ball visibly spins on its real axis.
+   Some hard spinless shots also knuckle. Every lofted kick is re-aimed so it still reaches the spot
+   (and a shot still crosses the goal line at the height and time) the AI planned, so accuracy is unchanged. */
 (function () {
   if (typeof ballPhysics !== 'function' || typeof kickBall !== 'function') return;
 
-  const DRAG = .0062;      // quadratic air drag per (m/s) of speed, per second (about half of a real ball, for playability)
-  const MAG = .055;        // vertical Magnus push from topspin / backspin
+  // ball and air constants (from the football-physics model)
+  const RHO = 1.0, CD = .2, AREA = .038, RADIUS = .11, SPIN_C = .5, MASS = .45;
+  const KD = RHO * CD * AREA / (2 * MASS);                 // drag:   a = -KD·|v|·v
+  const KM = RHO * AREA * SPIN_C * RADIUS / (2 * MASS);    // magnus: a =  KM·(ω × v)   (Cl·|v|²·(ω̂×v̂) folded together)
+  const CURL_W = .12 / KM;                                 // the game's curl value → vertical spin in rad/s
+  const TOP_W = .055 / KM;                                 // topspin amount → horizontal spin in rad/s
   const SIM_DT = 1 / 120;
 
   /* ---------- one air step, used both for the real ball and for aiming ---------- */
   function extraAir(v, b, dt) {
     const hs = Math.hypot(v.x, v.z), sp = Math.hypot(hs, v.y);
-    const f = Math.max(0, 1 - DRAG * sp * dt);
+    const f = Math.max(0, 1 - KD * sp * dt);
     v.x *= f; v.y *= f; v.z *= f;
-    if (b.top) { v.y -= b.top * hs * MAG * dt; b.top *= Math.pow(.75, dt); if (Math.abs(b.top) < .01) b.top = 0; }
+    const w = b.w;
+    if (w && (w.x || w.y || w.z)) {
+      // ω × v
+      const ax = w.y * v.z - w.z * v.y, ay = w.z * v.x - w.x * v.z, az = w.x * v.y - w.y * v.x;
+      v.x += ax * KM * dt; v.y += ay * KM * dt; v.z += az * KM * dt;
+      const d = Math.pow(.88, dt); w.x *= d; w.y *= d; w.z *= d;
+    }
     if (b.kn && hs > 4) {
       b.kt = (b.kt || 0) + dt;
       const px = -v.z / hs, pz = v.x / hs;
@@ -24,15 +36,20 @@
       b.kn *= Math.pow(.55, dt); if (b.kn < .02) b.kn = 0;
     }
   }
-  // same air model as the game (gravity, light drag, curl) plus optionally the new forces
+  // spin vector for a kick: sidespin (curl) around the vertical, top/back spin around the axis across the flight
+  function spinFor(v, curl, top) {
+    const hs = Math.hypot(v.x, v.z) || 1;
+    return { x:v.z / hs * top * TOP_W, y:-curl * CURL_W, z:-v.x / hs * top * TOP_W };
+  }
+  // the game's original air model (gravity, light drag, curl), or the new one when `extra` is given
   function sim(v0, p0, spin, extra, stop) {
     const v = { x:v0.x, y:v0.y, z:v0.z }, p = { x:p0.x, y:p0.y, z:p0.z };
-    const b = { top:extra ? extra.top : 0, kn:extra ? extra.kn : 0, kph:extra ? extra.kph : 0, kt:0 };
+    const b = extra ? { w:spinFor(v0, spin, extra.top), kn:extra.kn, kph:extra.kph, kt:0 } : null;
     let s = spin, t = 0;
     for (let i = 0; i < 900; i++) {
-      if (extra) extraAir(v, b, SIM_DT);
+      if (b) extraAir(v, b, SIM_DT);
       v.y -= GRAV * SIM_DT; const f = 1 - .05 * SIM_DT; v.x *= f; v.y *= f; v.z *= f;
-      if (s) { const hs = Math.hypot(v.x, v.z); if (hs > 3) { const px = -v.z / hs, pz = v.x / hs; v.x += px * s * hs * .12 * SIM_DT; v.z += pz * s * hs * .12 * SIM_DT; } s *= Math.pow(.35, SIM_DT); if (Math.abs(s) < .02) s = 0; }
+      if (!b && s) { const hs = Math.hypot(v.x, v.z); if (hs > 3) { const px = -v.z / hs, pz = v.x / hs; v.x += px * s * hs * .12 * SIM_DT; v.z += pz * s * hs * .12 * SIM_DT; } s *= Math.pow(.35, SIM_DT); if (Math.abs(s) < .02) s = 0; }
       const ox = p.x; p.x += v.x * SIM_DT; p.y += v.y * SIM_DT; p.z += v.z * SIM_DT; t += SIM_DT;
       const r = stop(p, v, ox); if (r) { if (r === 2) { const k = (Math.abs(p.x) - stop.gx) / (Math.abs(p.x - ox) || 1); p.x -= v.x * SIM_DT * k; p.y -= v.y * SIM_DT * k; p.z -= v.z * SIM_DT * k; t -= SIM_DT * k; } return { p, t, how:r }; }
     }
@@ -42,14 +59,13 @@
   /* ---------- re-aim a lofted kick so the new physics lands where the old one would ---------- */
   function reAim() {
     const b = ball, v = b.vel, P = b.pos;
-    b.top = 0; b.kn = 0; b.kt = 0;
+    b.w = null; b.kn = 0; b.kt = 0;
     if (b.owner || v.y < 1.2) return;
     const hs = Math.hypot(v.x, v.z); if (hs < 1) return;
     const extra = { top:0, kn:0, kph:Math.random() * 6.3 };
-    let stop, gx = 0;
+    let stop;
     const shot = b.shot && Math.sign(v.x) === b.shot.team.side;
     if (shot) {
-      gx = PL;
       stop = (p, vv) => (Math.abs(p.x) >= PL && Math.sign(p.x) === Math.sign(v.x)) ? 2 : (p.y < BR && vv.y < 0) ? 1 : 0; stop.gx = PL;
       if (hs > 24 && Math.abs(b.spin || 0) < .25 && Math.random() < .35) extra.kn = .9 + Math.random() * .5;   // knuckleball
       else extra.top = clamp((hs - 13) * .06, 0, 1.0) * (v.y < 6 ? 1 : .5);                              // driven shots dip
@@ -57,14 +73,15 @@
       stop = (p, vv) => (p.y < BR && vv.y < 0) ? 1 : 0;
       extra.top = v.y > 4 ? -.3 : .2;                                                                       // lofted balls float, chips skid
     }
-    const old = sim(v, P, b.spin || 0, null, stop);
+    const curl = b.spin || 0;
+    const old = sim(v, P, curl, null, stop);
     if (!old.how || old.t < .15) return;
     const D0 = Math.hypot(old.p.x - P.x, old.p.z - P.z);
-    let k = 1, vy = v.y, ang = 0;
-    for (let it = 0; it < 10; it++) {
+    let k = 1, vy = v.y, ang = 0, r = null;
+    for (let it = 0; it < 12; it++) {
       const c = Math.cos(ang), s = Math.sin(ang);
       const tv = { x:(v.x * c - v.z * s) * k, y:vy, z:(v.x * s + v.z * c) * k };
-      const r = sim(tv, P, b.spin || 0, extra, stop);
+      r = sim(tv, P, curl, extra, stop);
       if (shot && r.how === 2 && old.how === 2) {
         k *= clamp(r.t / old.t, .85, 1.2);
         vy += (old.p.y - r.p.y) / Math.max(r.t, .1);
@@ -75,42 +92,49 @@
       }
       // keep the direction: rotate so the ball ends up on the same line as before
       const a0 = Math.atan2(old.p.z - P.z, old.p.x - P.x), a1 = Math.atan2(r.p.z - P.z, r.p.x - P.x);
-      let da = a0 - a1; da = Math.atan2(Math.sin(da), Math.cos(da)); ang += clamp(da, -.08, .08);
+      let da = a0 - a1; da = Math.atan2(Math.sin(da), Math.cos(da)); ang += clamp(da, -.1, .1);
       k = clamp(k, .75, 1.6);
     }
     const c = Math.cos(ang), s = Math.sin(ang);
     v.set((v.x * c - v.z * s) * k, vy, (v.x * s + v.z * c) * k);
-    b.top = extra.top; b.kn = extra.kn; b.kph = extra.kph;
+    b.w = spinFor(v, curl, extra.top); b.kn = extra.kn; b.kph = extra.kph;
     if (b.shot) b.shot.maxV = v.length();
   }
 
   /* ---------- kicks and ball physics ---------- */
   const oldKick = kickBall;
-  kickBall = function (p, v) { oldKick(p, v); ball.top = 0; ball.kn = 0; ball._aim = true; };
+  kickBall = function (p, v) { oldKick(p, v); ball.w = null; ball.kn = 0; ball._aim = true; };
+  const W0 = { x:0, y:0, z:0 };
   const oldBall = ballPhysics;
   ballPhysics = function (dt) {
-    const b = ball; if (window.PHYS_OFF && PHYS_OFF.ball) { b._aim = false; return oldBall(dt); }
+    const b = ball; if (window.PHYS_OFF && PHYS_OFF.ball) { b._aim = false; b.w = null; return oldBall(dt); }
     if (b._aim) { b._aim = false; reAim(); }
-    if (b.owner) { b.top = b.kn = 0; return oldBall(dt); }
+    if (b.owner) { b.w = null; b.kn = 0; return oldBall(dt); }
     const v = b.vel, P = b.pos, air = P.y > BR + .01 || v.y > .01;
     if (air) extraAir(v, b, dt);
     const vyIn = v.y, hsIn = Math.hypot(v.x, v.z);
+    // in the air the spin vector does the curling; the game's own curl only acts once the ball is rolling
+    const curl = b.spin; if (air && b.w) b.spin = 0;
     oldBall(dt);
+    if (air && b.w) { b.spin = curl * Math.pow(.35, dt); if (Math.abs(b.spin) < .02) b.spin = 0; }
     // bounce: impact-speed dependent restitution, spin makes it skid on or check up
     if (air && vyIn < -1.6 && v.y > 0 && P.y <= BR + .001) {
       const imp = -vyIn, e = clamp(.66 - imp * .012, .42, .62);
       v.y = imp * e;
-      const grip = clamp(.86 + (b.top || 0) * .08, .74, .95), hs = Math.hypot(v.x, v.z);
+      const w = b.w || W0, hs = Math.hypot(v.x, v.z);
+      const top = hs > 0 ? (w.x * v.z - w.z * v.x) / hs / TOP_W : 0;          // + topspin, - backspin
+      const grip = clamp(.86 + top * .08, .74, .95);
       if (hs > 0 && hsIn > 0) { const k = hsIn * grip / hs; v.x *= k; v.z *= k; }
-      b.top = (b.top || 0) * .35; b.kn = 0;
+      if (b.w) { b.w.x *= .45; b.w.y *= .8; b.w.z *= .45; }
+      b.kn = 0;
       if (imp > 3.2) playFx('bounce', imp);
     }
     // rolling ball: no knuckle or lift once it is on the turf
-    if (P.y <= BR + .001 && v.y === 0) { b.kn = 0; b.top *= Math.pow(.2, dt); }
-    // spin the ball mesh with its spin (side spin around the vertical, top spin around the travel axis)
-    if (typeof ballMesh !== 'undefined') {
-      if (b.spin) ballMesh.rotation.y += b.spin * 18 * dt;
-      if (b.top && hsIn > 1) { ballMesh.rotateOnWorldAxis(AXIS.set(-v.z, 0, v.x).normalize(), b.top * 22 * dt); }
+    if (P.y <= BR + .001 && v.y === 0) { b.kn = 0; if (b.w) { const d = Math.pow(.15, dt); b.w.x *= d; b.w.z *= d; b.w.y *= d; } }
+    // spin the ball mesh on its real spin axis
+    if (typeof ballMesh !== 'undefined' && b.w) {
+      const wl = Math.hypot(b.w.x, b.w.y, b.w.z);
+      if (wl > .5) ballMesh.rotateOnWorldAxis(AXIS.set(b.w.x / wl, b.w.y / wl, b.w.z / wl), Math.min(wl, 60) * dt);
       if (b.kn) ballMesh.rotation.y += .4 * dt;
     }
   };
@@ -183,6 +207,11 @@
     const row = document.createElement('div'); row.className = 'row';
     row.innerHTML = '<span class="lab">CROWD NOISE</span>' + CROWD_N.map((n, i) => `<button type="button" class="${i === SET.crowd ? 'sel' : ''}" data-crowd="${i}">${n}</button>`).join('');
     rows[3].after(row);
+    if (!card.querySelector('.credits')) card.insertAdjacentHTML('beforeend', `<div class="credits" style="margin-top:14px;padding-top:10px;border-top:1px solid rgba(255,255,255,.1);font-size:12px;line-height:1.6;opacity:.8">
+      <b style="letter-spacing:2px;font-size:11px">CREDITS</b><br>
+      Ball physics (air drag + Magnus effect) based on <b>Johan Forslund</b>'s football-physics:
+      <a href="https://github.com/johanforslund/football-physics" target="_blank" rel="noopener" style="color:#ffd23f">github.com/johanforslund/football-physics</a><br>
+      3D engine: three.js (MIT)</div>`);
     const keys = card.querySelector('.keys'); if (keys && !/M<\/b>/.test(keys.innerHTML)) keys.insertAdjacentHTML('beforeend', '<div><b>M</b> crowd noise on / low / off</div>');
   };
   $('settings').addEventListener('click', e => {

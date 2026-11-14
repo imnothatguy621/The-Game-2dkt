@@ -147,7 +147,7 @@
     _applyTOD(tod);
     const P = TOD_PRESETS[tod];
     if (POST.grade) { POST.grade.uniforms.uSat.value = P.sat || 1; POST.grade.uniforms.uContrast.value = P.con || 1.07; }
-    BEAMS.forEach(b => { b.visible = HQ && P.glows; b.material.uniforms.uI.value = tod === 0 ? .03 : .014; });
+    BEAMS.forEach(b => { b.visible = HQ && P.glows && tod !== 2; b.material.uniforms.uI.value = tod === 0 ? .03 : .014; });
     FLASH.pts.visible = P.glows;
     if (typeof CLOUDS !== 'undefined' && CLOUDS) { CLOUDS.material.color.set(CLOUD_TINT[tod][0]); CLOUDS.material.opacity = CLOUD_TINT[tod][1]; }
   };
@@ -159,7 +159,7 @@
     vertexShader:`varying float vA; varying vec3 vN, vV;
       void main(){ vA = uv.y; vec4 mv = modelViewMatrix * vec4(position, 1.); vN = normalize(normalMatrix * normal); vV = normalize(-mv.xyz); gl_Position = projectionMatrix * mv; }`,
     fragmentShader:`uniform vec3 uCol; uniform float uI; varying float vA; varying vec3 vN, vV;
-      void main(){ float rim = abs(dot(normalize(vN), normalize(vV))); float a = pow(vA, 2.2) * smoothstep(.05, .45, vA) * rim * rim * uI; gl_FragColor = vec4(uCol * a, 1.); }`,
+      void main(){ float ln = length(vN), lv = length(vV); float rim = (ln > 1e-4 && lv > 1e-4) ? abs(dot(vN / ln, vV / lv)) : 0.; float va = clamp(vA, 0., 1.); float a = pow(va, 2.2) * smoothstep(.05, .45, va) * rim * rim * uI; a = (a >= 0. && a < 1.) ? a : 0.; gl_FragColor = vec4(uCol * a, 1.); }`,
     transparent:true, depthWrite:false, blending:THREE.AdditiveBlending, side:THREE.DoubleSide, fog:false,
   });
   if (HQ) for (const s of GLOWS) {

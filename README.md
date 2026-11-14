@@ -58,3 +58,9 @@ play a bot with a made-up username (marked 🤖). Kickoff progress (careers, Roa
 
 Code lives in src-social/ (social.js is shared, kickoff.js and skywarden.js connect it to each game). After editing, run
 `python3 src-social/build.py` to put it into both pages. Database setup: run src-social/friends.sql once in Supabase → SQL Editor.
+
+## Credits
+
+- Ball flight physics (quadratic air drag and the Magnus effect from a 3D spin vector) are based on the model in
+  **Johan Forslund**'s [football-physics](https://github.com/johanforslund/football-physics).
+- 3D engine: [three.js](https://threejs.org) (MIT).
