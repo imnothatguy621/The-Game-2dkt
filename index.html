@@ -8747,32 +8747,44 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.se
 /* Kickoff Rivals: realistic ball flight, bounces, player momentum, and a crowd-noise switch.
    The ball in the air follows the drag + Magnus-effect model from Johan Forslund's football-physics
    simulation (github.com/johanforslund/football-physics): quadratic air drag  F = ½·ρ·Cd·A·|v|·v  and a
-   Magnus lift from a full 3D spin vector, with lift coefficient  Cl = s·|ω|·r / |v|.  So curlers bend,
+   Magnus lift from a full 3D spin vector, with lift coefficient  Cl = s·|ω|·r / |v|.  On top of that, the
+   drag crisis and spin figures from "The physics of football" (Physics World): a fast ball keeps its pace
+   (low drag), then drag jumps as it slows and the swerve sharpens late, like Roberto Carlos's free kick. So curlers bend,
    driven shots dip with topspin, lofted balls float on backspin, and the ball visibly spins on its real axis.
    Some hard spinless shots also knuckle. Every lofted kick is re-aimed so it still reaches the spot
    (and a shot still crosses the goal line at the height and time) the AI planned, so accuracy is unchanged. */
 (function () {
   if (typeof ballPhysics !== 'function' || typeof kickBall !== 'function') return;
 
-  // ball and air constants (from the football-physics model)
-  const RHO = 1.0, CD = .2, AREA = .038, RADIUS = .11, SPIN_C = .5, MASS = .45;
-  const KD = RHO * CD * AREA / (2 * MASS);                 // drag:   a = -KD·|v|·v
-  const KM = RHO * AREA * SPIN_C * RADIUS / (2 * MASS);    // magnus: a =  KM·(ω × v)   (Cl·|v|²·(ω̂×v̂) folded together)
-  const CURL_W = .12 / KM;                                 // the game's curl value → vertical spin in rad/s
-  const TOP_W = .055 / KM;                                 // topspin amount → horizontal spin in rad/s
+  // ball and air constants. Drag + Magnus structure from the football-physics model; drag crisis and
+  // spin/lift figures from "The physics of football" (Physics World): free kicks at 25-30 m/s with 8-10 rev/s,
+  // low drag above the laminar→turbulent transition, high drag below it, and lift that grows as the ball slows.
+  const RHO = 1.2, AREA = .038, RADIUS = .11, MASS = .43;
+  const CD_LO = .2, CD_HI = .45, V_CRIT = 17, V_W = 1.6;   // drag crisis: smooth step from high to low Cd around V_CRIT m/s
+  const CS = 1.0, CL_MAX = .38;                            // lift coefficient Cl = CS · (r|ω| / |v|), capped
+  const KA = RHO * AREA / (2 * MASS);                      // ½ρA/m
+  const CURL_W = 2 * Math.PI * 9;                          // the game's curl value 1 → 9 rev/s of sidespin
+  const TOP_W = 2 * Math.PI * 5;                           // topspin amount 1 → 5 rev/s
   const SIM_DT = 1 / 120;
+  const cdOf = v => CD_LO + (CD_HI - CD_LO) / (1 + Math.exp((v - V_CRIT) / V_W));
+  window.BALL_PHYS = { cdOf, KA, CS, CL_MAX, RADIUS };
 
   /* ---------- one air step, used both for the real ball and for aiming ---------- */
   function extraAir(v, b, dt) {
     const hs = Math.hypot(v.x, v.z), sp = Math.hypot(hs, v.y);
-    const f = Math.max(0, 1 - KD * sp * dt);
+    // quadratic drag with the drag crisis (the game already applies a small linear drag of its own)
+    const f = Math.max(0, 1 - KA * cdOf(sp) * sp * dt);
     v.x *= f; v.y *= f; v.z *= f;
     const w = b.w;
-    if (w && (w.x || w.y || w.z)) {
-      // ω × v
-      const ax = w.y * v.z - w.z * v.y, ay = w.z * v.x - w.x * v.z, az = w.x * v.y - w.y * v.x;
-      v.x += ax * KM * dt; v.y += ay * KM * dt; v.z += az * KM * dt;
-      const d = Math.pow(.88, dt); w.x *= d; w.y *= d; w.z *= d;
+    if (w && sp > .5) {
+      const wl = Math.hypot(w.x, w.y, w.z);
+      if (wl > .1) {
+        // Magnus: F/m = ½ρA·Cl·v² along ω̂ × v̂, with Cl rising as the ball slows (so curl sharpens late)
+        const cl = Math.min(CL_MAX, CS * RADIUS * wl / sp), mag = KA * cl * sp * sp / (wl * sp);
+        const ax = w.y * v.z - w.z * v.y, ay = w.z * v.x - w.x * v.z, az = w.x * v.y - w.y * v.x;
+        v.x += ax * mag * dt; v.y += ay * mag * dt; v.z += az * mag * dt;
+        const d = Math.pow(.9, dt); w.x *= d; w.y *= d; w.z *= d;     // spin decays slowly in the air
+      }
     }
     if (b.kn && hs > 4) {
       b.kt = (b.kt || 0) + dt;
@@ -8957,6 +8969,7 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.se
       <b style="letter-spacing:2px;font-size:11px">CREDITS</b><br>
       Ball physics (air drag + Magnus effect) based on <b>Johan Forslund</b>'s football-physics:
       <a href="https://github.com/johanforslund/football-physics" target="_blank" rel="noopener" style="color:#ffd23f">github.com/johanforslund/football-physics</a><br>
+      Drag crisis and spin figures: "The physics of football", <a href="https://physicsworld.com/a/the-physics-of-football/" target="_blank" rel="noopener" style="color:#ffd23f">Physics World</a><br>
       3D engine: three.js (MIT)</div>`);
     const keys = card.querySelector('.keys'); if (keys && !/M<\/b>/.test(keys.innerHTML)) keys.insertAdjacentHTML('beforeend', '<div><b>M</b> crowd noise on / low / off</div>');
   };

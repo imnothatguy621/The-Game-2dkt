@@ -63,4 +63,5 @@ Code lives in src-social/ (social.js is shared, kickoff.js and skywarden.js conn
 
 - Ball flight physics (quadratic air drag and the Magnus effect from a 3D spin vector) are based on the model in
   **Johan Forslund**'s [football-physics](https://github.com/johanforslund/football-physics).
+- Drag crisis and spin/lift figures: "The physics of football", [Physics World](https://physicsworld.com/a/the-physics-of-football/).
 - 3D engine: [three.js](https://threejs.org) (MIT).
