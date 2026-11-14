@@ -5311,7 +5311,7 @@ for (const L of LEAGUES) L.clubs = L.clubs.map(c => (ALL['c-' + c[0]] = { id:'c-
 for (const n of NATIONS) ALL['n-' + n[0]] = { id:'n-' + n[0], name:n[1], code:n[0].toUpperCase(), ovr:n[2], kit:n[3], admin:false, nation:true };
 const NATION_LIST = NATIONS.map(n => ALL['n-' + n[0]]);
 const CUP_CLUBS = () => { const take = { eng:6, esp:6, ita:6, ger:6, fra:4, por:4 }; const out = []; for (const L of LEAGUES) out.push(...L.clubs.slice(0, take[L.id])); return out; };
-const ADMIN_HASH = '6fe6a1e89d47f99b9f0de45cc8d6d351243687416db0db9084f374bf39b466d9';
+const ADMIN_HASH = '3db9b1b51c0467c9bde48dfbb336216cd124e6c3fa85be9aee8d4c5c3ba09db6';
 const OP_OVR = 99;
 const SURN = ['Okafor','Lindqvist','Moreau','Tanaka','Silva','Kovac','Brennan','Haddad','Nunes','Osei','Vidal','Petrov','Akande','Castro','Holm','Ferreira','Mensah','Rossi','Novak','Duarte','Keane','Ibarra','Sato','Bakker','Reyes','Quinn','Adeyemi','Larsen','Varga','Costa','Delgado','Marsh','Kimura','Abbas','Torres','Hughes','Pereira','Diallo','Fischer','Morales','Byrne','Nakamura','Santos','Jansen','Lopez','Ward','Ndiaye','Ortiz'];
 
@@ -7161,7 +7161,7 @@ const SET = (() => { try { return Object.assign({ diff:1, len:1 }, JSON.parse(lo
 const saveSet = () => { try { localStorage.setItem('kr_set', JSON.stringify(SET)); } catch (e) {} };
 let ADMIN = false;
 async function sha(s) { const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s)); return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, '0')).join(''); }
-async function checkAdmin(code) { if (!code || !crypto.subtle) return false; return (await sha('kr-salt-7f3a:' + code)) === ADMIN_HASH; }
+async function checkAdmin(code) { if (!code || !crypto.subtle) return false; return (await sha('kr-salt-7f3a:' + String(code).trim().toLowerCase())) === ADMIN_HASH; }
 (async () => { try { const c = localStorage.getItem('kr_admin'); if (c && await checkAdmin(c)) { ADMIN = true; if (!$('home').classList.contains('hide')) showHome(); } } catch (e) {} })();
 const shown = id => { document.querySelectorAll('.ov').forEach(o => o.classList.toggle('hide', o.id !== id)); document.body.classList.add('inmenu'); document.body.classList.remove('playing'); };
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
