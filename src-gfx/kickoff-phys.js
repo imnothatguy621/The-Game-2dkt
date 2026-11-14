@@ -157,14 +157,14 @@
   window.movePhys = function (p, want, human, dt) {
     // AI keeps its tuned movement; momentum is for the player you control
     if (PHYS_OFF.move || !human) { const ax = want[0] - p.vel.x, az = want[1] - p.vel.z, am = Math.hypot(ax, az), maxA = (human ? 34 : 16) * dt; if (am > maxA) { p.vel.x += ax / am * maxA; p.vel.z += az / am * maxA; } else { p.vel.x = want[0]; p.vel.z = want[1]; } return; }
-    const base = human ? 31 : 16, vx = p.vel.x, vz = p.vel.z, s = Math.hypot(vx, vz);
+    const base = human ? 36 : 16, vx = p.vel.x, vz = p.vel.z, s = Math.hypot(vx, vz);
     let ax = want[0] - vx, az = want[1] - vz;
     if (s < .6) { const am = Math.hypot(ax, az), m = base * 1.1 * dt; if (am > m) { ax *= m / am; az *= m / am; } p.vel.x += ax; p.vel.z += az; return; }
     const ux = vx / s, uz = vz / s, al = ax * ux + az * uz;
     let lx = ax - ux * al, lz = az - uz * al;
     const sk = clamp(s / 9, 0, 1);
-    const aMax = (al > 0 ? base * (1.05 - .45 * sk) : base * 1.35) * dt;           // easing into top speed, sharp braking
-    const lMax = base * (1.2 - .5 * sk) * dt;                                      // wide turns at full sprint
+    const aMax = (al > 0 ? base * (1.1 - .25 * sk) : base * 1.4) * dt;           // easing into top speed, sharp braking
+    const lMax = base * (1.25 - .3 * sk) * dt;                                      // wide turns at full sprint
     const a = clamp(al, -aMax, aMax), lm = Math.hypot(lx, lz);
     if (lm > lMax) { lx *= lMax / lm; lz *= lMax / lm; }
     p.vel.x += ux * a + lx; p.vel.z += uz * a + lz;

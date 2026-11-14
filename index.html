@@ -5948,7 +5948,7 @@ function setupTeams(cfg) {
     const given = cfg.squads && cfg.squads[ti];
     const sq = given || (typeof autoSquad === 'function' ? autoSquad(def) : null);
     const ovr = given ? Math.round(given.reduce((a, p) => a + p.ovr, 0) / 11) : def.ovr;
-    const t = { i:ti, def, kit:kits[ti], side:ti === 0 ? 1 : -1, ctl, op, ovr, K:teamK(ovr, op, boost), players:[], score:0, shots:0, onT:0, poss:0, passes:0,
+    const t = { i:ti, def, kit:kits[ti], side:ti === 0 ? 1 : -1, ctl, op, ovr, K:(k => { if (ctl !== 'ai' && !op) { k.gk = k.gk * 1.15 + .05; k.tackle += .07; } return k; })(teamK(ovr, op, boost)), players:[], score:0, shots:0, onT:0, poss:0, passes:0,
       chaser:null, cover:null, ctrl:null, buf:null, power:0, charging:false, lock:cfg.lock ? cfg.lock[ti] : null, sq };
     FORM.forEach((f, i) => {
       const num = i === 0 ? 1 : [0,2,4,5,3,8,6,10,7,9,11][i];
@@ -6058,12 +6058,15 @@ function shoot(p, power, aimZ) {
   const t = p.team, s = t.side, gx = PL * s;
   const [, pr] = nearestOpp(p);
   const acc = isHuman(t) ? Math.max(t.K.acc, .8) : t.K.acc;
+  const hum = isHuman(t), gkZ = opp(t).players[0].pos.z;
   let tz = aimZ == null ? -Math.sign(ball.pos.z || rnd(-1, 1)) * GW * .62 : aimZ * GW * .86;
+  // you: pushing the stick up or down picks that corner; otherwise the shot goes to the side the keeper has left open
+  if (hum) tz = aimZ != null && Math.abs(aimZ) > .6 ? Math.sign(aimZ) * GW * .74 : (Math.abs(gkZ) > .25 ? -Math.sign(gkZ) : -Math.sign(ball.pos.z || rnd(-1, 1))) * GW * .74;
   const dist = Math.hypot(gx - ball.pos.x, ball.pos.z);
   const err = (.25 + power * power * 1.3 + (pr < 1.5 ? .7 : 0) + dist * .03) * (1.5 - acc * .75);
-  tz += rnd(-1, 1) * err;
-  const h = .25 + Math.pow(power, 1.6) * 2.95 + rnd(-.25, .25) * (1.4 - acc);
-  const speed = (15 + power * 18) * t.K.shot;
+  tz += rnd(-1, 1) * err * (hum ? .5 : 1);
+  const h = hum ? .95 + Math.pow(power, 1.2) * 1.2 + rnd(-.1, .1) : .25 + Math.pow(power, 1.6) * 2.95 + rnd(-.25, .25) * (1.4 - acc);
+  const speed = (15 + power * 18) * t.K.shot * (hum ? 1.05 : 1);
   const curl = Math.abs(tz) > 1.4 && dist > 11 ? Math.sign(tz) : 0; tz += curl * .85;
   const dx = gx - ball.pos.x, dz = tz - ball.pos.z, d = Math.hypot(dx, dz) || 1, T = d / speed;
   const vy = (h - ball.pos.y + .5 * GRAV * T * T) / T;
@@ -6198,7 +6201,7 @@ function bestDefender(t, except) {
   for (const q of t.players) { if (q.role === 'GK' || q === except) continue; const s = defScore(q, t); if (s < bs) { bs = s; best = q; } }
   return [best, bs];
 }
-function autoPower(p) { const gx = PL * p.team.side; const d = Math.hypot(gx - ball.pos.x, ball.pos.z); return clamp(.42 + d / 55, .45, .8); }
+function autoPower(p) { const gx = PL * p.team.side; const d = Math.hypot(gx - ball.pos.x, ball.pos.z); return clamp(.56 + d / 50, .66, .92); }
 function standTackle(p) { if (p.tackleCd > 0 || p.lunge > 0) return; p.lunge = .24; p.tackleTry = true; p.kickAnim = .25; }
 function humanControl(p, dt, F) {
   const t = p.team, own = ball.owner === p, frozen = S.frozen === p;
@@ -8903,14 +8906,14 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.se
   window.movePhys = function (p, want, human, dt) {
     // AI keeps its tuned movement; momentum is for the player you control
     if (PHYS_OFF.move || !human) { const ax = want[0] - p.vel.x, az = want[1] - p.vel.z, am = Math.hypot(ax, az), maxA = (human ? 34 : 16) * dt; if (am > maxA) { p.vel.x += ax / am * maxA; p.vel.z += az / am * maxA; } else { p.vel.x = want[0]; p.vel.z = want[1]; } return; }
-    const base = human ? 31 : 16, vx = p.vel.x, vz = p.vel.z, s = Math.hypot(vx, vz);
+    const base = human ? 36 : 16, vx = p.vel.x, vz = p.vel.z, s = Math.hypot(vx, vz);
     let ax = want[0] - vx, az = want[1] - vz;
     if (s < .6) { const am = Math.hypot(ax, az), m = base * 1.1 * dt; if (am > m) { ax *= m / am; az *= m / am; } p.vel.x += ax; p.vel.z += az; return; }
     const ux = vx / s, uz = vz / s, al = ax * ux + az * uz;
     let lx = ax - ux * al, lz = az - uz * al;
     const sk = clamp(s / 9, 0, 1);
-    const aMax = (al > 0 ? base * (1.05 - .45 * sk) : base * 1.35) * dt;           // easing into top speed, sharp braking
-    const lMax = base * (1.2 - .5 * sk) * dt;                                      // wide turns at full sprint
+    const aMax = (al > 0 ? base * (1.1 - .25 * sk) : base * 1.4) * dt;           // easing into top speed, sharp braking
+    const lMax = base * (1.25 - .3 * sk) * dt;                                      // wide turns at full sprint
     const a = clamp(al, -aMax, aMax), lm = Math.hypot(lx, lz);
     if (lm > lMax) { lx *= lMax / lm; lz *= lMax / lm; }
     p.vel.x += ux * a + lx; p.vel.z += uz * a + lz;

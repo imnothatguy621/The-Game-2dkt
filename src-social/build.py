@@ -24,6 +24,13 @@ s = once(s, "hairStyle:look ? (look.style || 0) : (Math.random() * 4) | 0 });", 
 s = inject(s, open(os.path.join(R, 'src-gfx', 'kickoff-body2.js')).read(), 'BODY2')
 s = inject(s, open(os.path.join(R, 'src-gfx', 'kickoff-gfx2.js')).read(), 'GFX2')
 s = once(s, "model.traverse(o => { if (o.isSkinnedMesh) { o.material = mat;", "model.traverse(o => { if (o.isSkinnedMesh) { o.material = (/Joints/.test(o.name) && mat.userData.jointMat) || mat;", 'jointmat')
+s = once(s, "  let tz = aimZ == null ? -Math.sign(ball.pos.z || rnd(-1, 1)) * GW * .62 : aimZ * GW * .86;",
+  "  const hum = isHuman(t), gkZ = opp(t).players[0].pos.z;\n  let tz = aimZ == null ? -Math.sign(ball.pos.z || rnd(-1, 1)) * GW * .62 : aimZ * GW * .86;\n  // you: pushing the stick up or down picks that corner; otherwise the shot goes to the side the keeper has left open\n  if (hum) tz = aimZ != null && Math.abs(aimZ) > .6 ? Math.sign(aimZ) * GW * .74 : (Math.abs(gkZ) > .25 ? -Math.sign(gkZ) : -Math.sign(ball.pos.z || rnd(-1, 1))) * GW * .74;", 'shootfix1')
+s = once(s, "  tz += rnd(-1, 1) * err;\n  const h = .25 + Math.pow(power, 1.6) * 2.95 + rnd(-.25, .25) * (1.4 - acc);",
+  "  tz += rnd(-1, 1) * err * (hum ? .5 : 1);\n  const h = hum ? .95 + Math.pow(power, 1.2) * 1.2 + rnd(-.1, .1) : .25 + Math.pow(power, 1.6) * 2.95 + rnd(-.25, .25) * (1.4 - acc);", 'shootfix2')
+s = once(s, "return clamp(.42 + d / 55, .45, .8); }", "return clamp(.56 + d / 50, .66, .92); }", 'autopower')
+s = once(s, "  const speed = (15 + power * 18) * t.K.shot;", "  const speed = (15 + power * 18) * t.K.shot * (hum ? 1.05 : 1);", 'shootfix3')
+s = once(s, "K:teamK(ovr, op, boost), players:[]", "K:(k => { if (ctl !== 'ai' && !op) { k.gk = k.gk * 1.15 + .05; k.tackle += .07; } return k; })(teamK(ovr, op, boost)), players:[]", 'humkeeper')
 s = once(s, "const human = F && p === t.ctrl, ax = want[0] - p.vel.x,", "const human = F && p === t.ctrl; if (typeof movePhys === 'function') movePhys(p, want, human, dt); else { const ax = want[0] - p.vel.x,", 'movephys1')
 s = once(s, "maxA = (human ? 34 : 16) * dt;\n      if (am > maxA) { p.vel.x += ax / am * maxA; p.vel.z += az / am * maxA; } else { p.vel.x = want[0]; p.vel.z = want[1]; }", "maxA = (human ? 34 : 16) * dt;\n      if (am > maxA) { p.vel.x += ax / am * maxA; p.vel.z += az / am * maxA; } else { p.vel.x = want[0]; p.vel.z = want[1]; } }", 'movephys2')
 s = inject(s, open(os.path.join(R, 'src-gfx', 'kickoff-phys.js')).read(), 'PHYS')
