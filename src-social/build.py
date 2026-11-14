@@ -28,6 +28,7 @@ s = once(s, "const human = F && p === t.ctrl, ax = want[0] - p.vel.x,", "const h
 s = once(s, "maxA = (human ? 34 : 16) * dt;\n      if (am > maxA) { p.vel.x += ax / am * maxA; p.vel.z += az / am * maxA; } else { p.vel.x = want[0]; p.vel.z = want[1]; }", "maxA = (human ? 34 : 16) * dt;\n      if (am > maxA) { p.vel.x += ax / am * maxA; p.vel.z += az / am * maxA; } else { p.vel.x = want[0]; p.vel.z = want[1]; } }", 'movephys2')
 s = inject(s, open(os.path.join(R, 'src-gfx', 'kickoff-phys.js')).read(), 'PHYS')
 s = inject(s, open(os.path.join(R, 'src-gfx', 'kickoff-replay.js')).read(), 'REPLAY')
+s = inject(s, open(os.path.join(R, 'src-gfx', 'kickoff-celeb.js')).read(), 'CELEB')
 s = inject(s, rd('kickoff.js') + '\n' + rd('social.js'))
 open(p, 'w').write(s)
 
