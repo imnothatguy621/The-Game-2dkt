@@ -101,6 +101,8 @@
   #ktv .skip{position:absolute;bottom:22px;left:50%;transform:translateX(-50%);font-size:12px;font-weight:700;letter-spacing:1.5px;opacity:0;transition:.3s;background:rgba(0,0,0,.35);padding:6px 12px;border-radius:20px}
   #ktv .skip.on{opacity:.75}
   body.ktv-on #who,body.ktv-on #radar,body.ktv-on #banner,body.ktv-on #toast{opacity:0!important;transition:opacity .2s}
+  #ktv.bodycam:before{content:"";position:absolute;inset:0;background:radial-gradient(ellipse at center,transparent 52%,rgba(0,0,0,.55) 85%,rgba(0,0,0,.85));pointer-events:none}
+  #ktv.bodycam:after{content:"● REC";position:absolute;left:24px;top:70px;font:800 13px/1 ui-monospace,Menlo,monospace;letter-spacing:2px;color:#ff4d4d;animation:ktvBlink 1s infinite}
   @media (max-width:700px){#ktv .card{bottom:150px;left:12px}#ktv .bug{right:70px;top:10px}#ktv .bug em{display:none}#ktv .stats{right:12px}}`;
   document.head.appendChild(css);
   const UI = document.createElement('div'); UI.id = 'ktv';
@@ -166,7 +168,7 @@
 
   /* ---------------- replay director ---------------- */
   const D = { segs:[], s:0, kind:'', sh:null, snap:null, shotI:-1, endT:0 };
-  const ANG = { bc:'BROADCAST CAM', pl:'PLAYER CAM', gl:'GOAL CAM', hi:'TACTICAL CAM' };
+  const ANG = { bc:'BROADCAST CAM', pl:'PLAYER CAM', gl:'GOAL CAM', hi:'TACTICAL CAM', body:'BODYCAM' };
   function plan(kind, sh, si, endI) {
     const n = REC.buf.length - 1;
     si = si < 0 ? Math.max(0, endI - 25) : si;
@@ -175,9 +177,13 @@
       segs.push({ cam:'bc', a:Math.max(0, si - 80), b:Math.min(n, endI + 10), sp:.8 });
       segs.push({ cam:'pl', a:Math.max(0, si - 20), b:Math.min(n, si + 16), sp:.3, slow:true });
       segs.push({ cam:'gl', a:Math.max(0, si - 4), b:Math.min(n, endI + 24), sp:.5 });
+      // sometimes: see it through the scorer's eyes, or the keeper's
+      if (Math.random() < .55) { const gk = Math.random() < .5; segs.splice(2, 0, { cam:'body', who:gk ? 'gk' : 'sc', a:Math.max(0, si - (gk ? 10 : 28)), b:Math.min(n, endI + 14), sp:.55 }); }
     } else {
       segs.push({ cam:'bc', a:Math.max(0, si - 60), b:Math.min(n, endI + 6), sp:.8 });
-      segs.push({ cam:Math.random() < .5 ? 'pl' : 'gl', a:Math.max(0, si - 16), b:Math.min(n, endI + 4), sp:.38, slow:true });
+      const r = Math.random();
+      if (r < .35) segs.push({ cam:'body', who:Math.random() < .5 ? 'gk' : 'sc', a:Math.max(0, si - 20), b:Math.min(n, endI + 6), sp:.45 });
+      else segs.push({ cam:r < .68 ? 'pl' : 'gl', a:Math.max(0, si - 16), b:Math.min(n, endI + 4), sp:.38, slow:true });
     }
     return segs.filter(s => s.b - s.a > 8);
   }
@@ -214,13 +220,15 @@
   }
   function startSeg() {
     const g = D.segs[D.s]; REP.start = g.a; REP.end = g.b; REP.i = g.a; REP.speed = g.sp;
-    q('.ang').textContent = ANG[g.cam]; q('.spd').textContent = g.slow ? 'SUPER SLOW-MO' : 'ANGLE ' + (D.s + 1) + '/' + D.segs.length;
+    unhideBody(); const bp = g.cam === 'body' ? bodyOf(g) : null; D.bodyP = bp;
+    UI.classList.toggle('bodycam', !!bp);
+    q('.ang').textContent = ANG[g.cam] + (bp ? ' · ' + bp.name.toUpperCase() : ''); q('.spd').textContent = g.slow ? 'SUPER SLOW-MO' : 'ANGLE ' + (D.s + 1) + '/' + D.segs.length;
     D.camInit = true;
-    if (D.s > 0) sting(teamCols(D.sh ? D.sh.team : 0));
+    if (D.s > 0) { sting(teamCols(D.sh ? D.sh.team : 0)); q('.card').classList.remove('on'); }
     D.wait = D.s > 0 ? .3 : D.wait;
   }
   function finish() {
-    REP.on = false; dropTrace(); RING.visible = false; hideAll(); document.body.classList.remove('ktv-on'); if (D.fov) { camera.fov = D.fov; camera.updateProjectionMatrix(); }
+    REP.on = false; dropTrace(); RING.visible = false; hideAll(); unhideBody(); UI.classList.remove('bodycam'); document.body.classList.remove('ktv-on'); if (D.fov) { camera.fov = D.fov; camera.updateProjectionMatrix(); }
     sting(teamCols(D.sh ? D.sh.team : 0));
     fx('replay', 0);
     if (D.kind === 'goal') { REC.buf.length = 0; S.state = 'goal'; S.timer = .9; showStats(); }
@@ -249,12 +257,36 @@
   const _end = endReplay;
   endReplay = function () { if (REP.on) finish(); else _end(); };
 
+  /* ---------------- bodycam: through a player's eyes ---------------- */
+  function bodyOf(g) {
+    let p = null;
+    if (g.who === 'gk' && D.sh) { const t = S.teams.find(t => t.i !== D.sh.team); p = t && t.players.find(q => q.role === 'GK'); }
+    if (!p && D.sh) p = S.players[D.sh.pi];
+    if (!p) { let bd = 1e9; for (const q of S.players) { const d = d2(q.pos, ball.pos); if (d < bd) { bd = d; p = q; } } }
+    return p;
+  }
+  function unhideBody() { if (D.hid) { D.hid.visible = true; D.hid = null; } }
+  const eye = new THREE.Vector3(), gaze = new THREE.Vector3();
+  function bodyCam(p, dt) {
+    const root = p.g && (p.g.root || p.g.model); if (root && root.visible) { root.visible = false; D.hid = root; }
+    const fx_ = Math.sin(p.face), fz_ = Math.cos(p.face), sp = Math.hypot(p.vel.x, p.vel.z), t = performance.now() / 1000;
+    const bob = Math.sin(t * 11) * .03 * Math.min(1, sp / 5), sway = Math.cos(t * 5.5) * .02 * Math.min(1, sp / 5);
+    const dive = p.dive > 0 ? -.6 : 0;
+    eye.set(p.pos.x + fx_ * .16 - fz_ * sway, 1.66 + bob + dive, p.pos.z + fz_ * .16 + fx_ * sway);
+    gaze.set(ball.pos.x, Math.max(.15, ball.pos.y), ball.pos.z);
+    if (D.camInit) { camLook.copy(gaze); D.camInit = false; }
+    camera.position.copy(eye);
+    camLook.lerp(gaze, 1 - Math.exp(-dt * 9));
+    camera.lookAt(camLook);
+    if (Math.abs(camera.fov - 78) > .1) { camera.fov = 78; camera.updateProjectionMatrix(); }
+  }
   const tmpV = new THREE.Vector3();
   replayCam = function (dt) {
     const g = D.segs[D.s]; if (!g) return;
     const b = ball.pos, side = REP.side, gx = side * PL;
     const sp = D.sh && S.players[D.sh.pi], prog = (REP.i - g.a) / Math.max(1, g.b - g.a);
     let cam, look, fov = 50;
+    if (g.cam === 'body' && D.bodyP) { bodyCam(D.bodyP, dt); return; }
     if (g.cam === 'bc') { cam = new V3(b.x - side * 6, 9.5, b.z * .35 + 21); look = new V3(b.x + side * 2, .6, b.z * .7); fov = 40; }
     else if (g.cam === 'pl' && sp) {
       const toG = tmpV.set(gx - sp.pos.x, 0, -sp.pos.z).normalize(), orbit = (prog - .5) * 1.1;
