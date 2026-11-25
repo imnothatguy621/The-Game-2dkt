@@ -159,7 +159,7 @@
         p._dk = kickId;
         const opp = b.lastTouch && b.lastTouch.team !== p.team;
         const hi = P.y > .85, fast = sp > 14;
-        p._defl = hi ? true : Math.random() < (fast ? (opp ? .55 : .3) : (opp ? .25 : .12));
+        p._defl = Math.random() < (hi ? (sp > 12 ? .6 : 0) : fast ? (opp ? .22 : .1) : (opp ? .08 : .04));   // most interceptions are clean control now
       }
       if (!p._defl) continue;
       p.kickCd = Math.max(p.kickCd || 0, .05);                                   // he can't trap this one

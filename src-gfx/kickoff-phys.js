@@ -109,6 +109,7 @@
     }
     const c = Math.cos(ang), s = Math.sin(ang);
     v.set((v.x * c - v.z * s) * k, vy, (v.x * s + v.z * c) * k);
+    const vl = v.length(); if (vl > 36) v.multiplyScalar(36 / vl);       // no superhuman kicks
     b.w = spinFor(v, curl, extra.top); b.kn = extra.kn; b.kph = extra.kph;
     if (b.shot) b.shot.maxV = v.length();
   }
