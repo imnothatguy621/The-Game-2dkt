@@ -215,7 +215,8 @@
     const ang = s0.arrived ? fa + orb : Math.atan2(s0.vel.x, s0.vel.z) + orb;
     const dist = crowded ? 7.6 : s0.arrived ? 5.6 : 7, hgt = crowded ? 2.5 : 1.45;
     cv.set(s0.pos.x + Math.sin(ang) * dist, hgt, s0.pos.z + Math.cos(ang) * dist);
-    cv.z = clamp(cv.z, -PW - 3.5, PW + 3.5); cv.x = clamp(cv.x, -PL - 3, PL + 3);
+    const inCage = window.STREET && STREET.street, mz = inCage ? PW - 1 : PW + 3.5, mx = inCage ? PL - 1 : PL + 3;
+    cv.z = clamp(cv.z, -mz, mz); cv.x = clamp(cv.x, -mx, mx);
     lv.set(s0.pos.x, CEL.type === 'slide' && s0.arrived ? .6 : .95, s0.pos.z);
     if (CEL.camInit) { CEL.camInit = false; }
     const k = 1 - Math.exp(-dt * (s0.arrived ? 2.2 : 3.2));
