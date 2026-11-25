@@ -73,20 +73,20 @@
   .mcx-dd{background:linear-gradient(120deg,#5b0f1a,#1b2340);border-radius:12px;padding:12px 14px;margin:10px 0;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
   .mcx-dd .clk{font:900 34px/1 "Segoe UI",system-ui;font-variant-numeric:tabular-nums;letter-spacing:1px;color:#ffd23f}
   .mcx-tag{font-size:10px;font-weight:900;letter-spacing:1.2px;padding:3px 7px;border-radius:6px;background:rgba(255,255,255,.12)}
-  #reveal{position:fixed;inset:0;z-index:60;display:none;align-items:center;justify-content:center;flex-direction:column;background:radial-gradient(circle at 50% 45%,var(--c1),#000 70%);color:#fff;font-family:"Segoe UI",system-ui,sans-serif;overflow:hidden;cursor:pointer}
-  #reveal.on{display:flex}
-  #reveal .beam{position:absolute;top:-20%;left:50%;width:46vw;height:140%;transform:translateX(-50%);background:linear-gradient(180deg,rgba(255,255,255,.35),transparent 70%);clip-path:polygon(40% 0,60% 0,100% 100%,0 100%);animation:rvBeam 2.4s ease-in-out infinite alternate}
-  #reveal .hw{font:900 italic min(13vw,110px)/1 "Segoe UI",system-ui;letter-spacing:2px;text-shadow:0 8px 40px rgba(0,0,0,.6);opacity:0;animation:rvIn .8s .3s forwards}
-  #reveal .cardw{transform:perspective(800px) rotateY(180deg) scale(.6);opacity:0;animation:rvCard 1.3s 1s cubic-bezier(.2,.9,.2,1) forwards;margin:16px 0}
-  #reveal .cardw .pcard{transform:scale(1.6);transform-origin:center}
-  #reveal .sub{opacity:0;animation:rvIn .6s 2.2s forwards;font-weight:800;letter-spacing:2px;text-align:center}
-  #reveal .sub small{display:block;opacity:.7;margin-top:6px;font-size:12px;letter-spacing:3px}
+  #mcReveal{position:fixed;inset:0;z-index:60;display:none;align-items:center;justify-content:center;flex-direction:column;background:radial-gradient(circle at 50% 45%,var(--c1),#000 70%);color:#fff;font-family:"Segoe UI",system-ui,sans-serif;overflow:hidden;cursor:pointer}
+  #mcReveal.on{display:flex}
+  #mcReveal .beam{position:absolute;top:-20%;left:50%;width:46vw;height:140%;transform:translateX(-50%);background:linear-gradient(180deg,rgba(255,255,255,.35),transparent 70%);clip-path:polygon(40% 0,60% 0,100% 100%,0 100%);animation:rvBeam 2.4s ease-in-out infinite alternate}
+  #mcReveal .hw{font:900 italic min(13vw,110px)/1 "Segoe UI",system-ui;letter-spacing:2px;text-shadow:0 8px 40px rgba(0,0,0,.6);opacity:0;animation:rvIn .8s .3s forwards}
+  #mcReveal .cardw{transform:perspective(800px) rotateY(180deg) scale(.6);opacity:0;animation:rvCard 1.3s 1s cubic-bezier(.2,.9,.2,1) forwards;margin:16px 0}
+  #mcReveal .cardw .pcard{transform:scale(1.6);transform-origin:center}
+  #mcReveal .sub{opacity:0;animation:rvIn .6s 2.2s forwards;font-weight:800;letter-spacing:2px;text-align:center}
+  #mcReveal .sub small{display:block;opacity:.7;margin-top:6px;font-size:12px;letter-spacing:3px}
   @keyframes rvIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
   @keyframes rvCard{to{opacity:1;transform:perspective(800px) rotateY(0) scale(1)}}
   @keyframes rvBeam{from{opacity:.4}to{opacity:.9}}`;
   document.head.appendChild(css);
   const OV = document.createElement('div'); OV.id = 'mcx'; document.body.appendChild(OV);
-  const RV = document.createElement('div'); RV.id = 'reveal'; document.body.appendChild(RV);
+  const RV = document.createElement('div'); RV.id = 'mcReveal'; document.body.appendChild(RV);
   RV.addEventListener('click', () => RV.classList.remove('on'));
   const modal = h => { OV.innerHTML = `<div class="box">${h}</div>`; OV.classList.add('on'); };
   const closeModal = () => OV.classList.remove('on');

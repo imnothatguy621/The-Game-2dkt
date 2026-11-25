@@ -42,6 +42,7 @@ s = inject(s, open(os.path.join(R, 'src-gfx', 'kickoff-fans.js')).read(), 'FANS'
 s = inject(s, open(os.path.join(R, 'src-gfx', 'kickoff-play.js')).read(), 'PLAY')
 s = inject(s, open(os.path.join(R, 'src-gfx', 'kickoff-mc.js')).read(), 'MCX')
 s = inject(s, open(os.path.join(R, 'src-gfx', 'kickoff-pc.js')).read(), 'PCX')
+s = inject(s, open(os.path.join(R, 'src-gfx', 'kickoff-rts.js')).read(), 'RTSX')
 s = inject(s, rd('kickoff.js') + '\n' + rd('social.js'))
 open(p, 'w').write(s)
 
