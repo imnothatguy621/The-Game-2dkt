@@ -57,6 +57,7 @@ s = inject(s, open(os.path.join(R, 'src-gfx', 'kickoff-rts.js')).read(), 'RTSX')
 s = inject(s, open(os.path.join(R, 'src-gfx', 'kickoff-street.js')).read(), 'STREET')
 s = inject(s, open(os.path.join(R, 'src-gfx', 'kickoff-extras.js')).read(), 'EXTRAS')
 s = inject(s, open(os.path.join(R, 'src-gfx', 'kickoff-cam.js')).read(), 'CAMX')
+s = inject(s, open(os.path.join(R, 'src-gfx', 'kickoff-sim.js')).read(), 'SIMX')
 s = inject(s, rd('kickoff.js') + '\n' + rd('social.js'))
 open(p, 'w').write(s)
 
