@@ -174,7 +174,7 @@
 
   const _kit = kitMaterial;
   kitMaterial = function (opts) {
-    const seedU = { value:Math.random() };
+    const seedU = { value:opts.seed != null ? opts.seed : Math.random() };
     let shared = null;
     const make = joints => {
       const m = _kit(opts), ob = m.onBeforeCompile;

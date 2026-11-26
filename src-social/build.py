@@ -20,7 +20,7 @@ s = once(s, "label:'Online 1v1 · Room ' + code };", "label:'Online 1v1 · ' + (
 s = once(s, "netSend('join', { team:NET.team, op:ALL[NET.team].admin && ADMIN })", "netSend('join', { team:NET.team, op:ALL[NET.team].admin && ADMIN, name:(window.SOC && SOC.username()) || '' })", 'hello')
 s = once(s, "function netLeave() { clearInterval(NET.hb);", "function netLeave() { NET.peerName = ''; clearInterval(NET.hb);", 'leave')
 s = once(s, "const boots = '#' + (look ? BOOTS[look.boot] : BOOTS[(Math.random() * 5) | 0])", "const boots = '#' + (look ? BOOTS[look.boot] : BOOTS[(Math.random() * BOOTS.length) | 0])", 'bootsrand')
-s = once(s, "hairStyle:look ? (look.style || 0) : (Math.random() * 4) | 0 });", "hairStyle:look ? (look.style || 0) : (Math.random() * 6) | 0 });", 'hair6')
+s = once(s, "hairStyle:look ? (look.style || 0) : (Math.random() * 4) | 0 });", "hairStyle:look ? (look.style || 0) : (Math.random() * 6) | 0, seed:look && look.seed != null ? look.seed : null });", 'hair6')
 s = inject(s, open(os.path.join(R, 'src-gfx', 'kickoff-body2.js')).read(), 'BODY2')
 s = inject(s, open(os.path.join(R, 'src-gfx', 'kickoff-gfx2.js')).read(), 'GFX2')
 s = once(s, "model.traverse(o => { if (o.isSkinnedMesh) { o.material = mat;", "model.traverse(o => { if (o.isSkinnedMesh) { o.material = (/Joints/.test(o.name) && mat.userData.jointMat) || mat;", 'jointmat')
@@ -62,6 +62,8 @@ s = once(s, "  if (sp > .4 && p.slide <= 0 && S.frozen !== p) { const hum = p ==
 s = once(s, "g.body.rotation.z = p.diveDir * Math.sin(t * Math.PI / 2) * 1.35;", "g.body.rotation.z = -p.diveDir * Math.sin(t * Math.PI / 2) * 1.35;", 'gkdive2')
 s = inject(s, open(os.path.join(R, 'src-gfx', 'kickoff-gk.js')).read(), 'GKX')
 s = inject(s, open(os.path.join(R, 'src-gfx', 'kickoff-real.js')).read(), 'REALX')
+s = once(s, "  const pick = arr => arr[(Math.random() * arr.length) | 0];", "  if (!look && name && !isRef && window.lookFor) look = lookFor(name);\n  const pick = arr => arr[(Math.random() * arr.length) | 0];", 'looks1')
+s = inject(s, open(os.path.join(R, 'src-gfx', 'kickoff-portrait.js')).read(), 'PORTX')
 s = inject(s, rd('kickoff.js') + '\n' + rd('social.js'))
 open(p, 'w').write(s)
 
