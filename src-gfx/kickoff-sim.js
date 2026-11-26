@@ -55,6 +55,33 @@
   const squadOf = id => { try { return id && ALL[id] ? autoSquad(ALL[id]) : null; } catch (e) { return null; } };
   simScore = function (a, b) { const r = simMatch({ ovr:ALL[a].ovr, sq:squadOf(a) }, { ovr:ALL[b].ovr, sq:squadOf(b) }); return [r.hs, r.as]; };
 
+  /* ---------------- watching a simulation: it takes a few seconds and can't be spammed ---------------- */
+  let LOCK = false;
+  window.SIMLOCK = () => LOCK;
+  function watch(title, A, B, r, done) {
+    const box = document.getElementById('mcx'); if (!box) { done(); return; }
+    LOCK = true;
+    box.innerHTML = `<div class="box"><h3>${esc(title)}</h3><div style="display:flex;justify-content:space-between;align-items:center;font:900 italic 30px 'Segoe UI',system-ui;margin:8px 0"><span>${esc(A.code)}</span><span id="simSc">0 - 0</span><span>${esc(B.code)}</span></div>
+      <div style="height:8px;border-radius:4px;background:rgba(255,255,255,.1);overflow:hidden"><i id="simBar" style="display:block;height:100%;width:0;background:linear-gradient(90deg,#2f80ed,#ffd23f)"></i></div><div class="mini" id="simMin" style="margin-top:6px">0'</div><div id="simEv" class="mcx-list"></div></div>`;
+    box.classList.add('on');
+    const t0 = performance.now(), DUR = 3200; let shown = 0;
+    (function tick() {
+      const k = Math.min(1, (performance.now() - t0) / DUR), m = Math.round(k * 90);
+      const bar = document.getElementById('simBar');
+      if (bar) { bar.style.width = k * 100 + '%'; document.getElementById('simMin').textContent = m + "'"; }
+      while (bar && shown < r.ev.length && r.ev[shown].m <= m) { const e = r.ev[shown++]; document.getElementById('simEv').insertAdjacentHTML('beforeend', `<div class="mcx-row" style="justify-content:${e.side ? 'flex-end' : 'flex-start'}"><b>${e.m}'</b> ⚽ ${esc(e.who || '')}</div>`); const hs = r.ev.slice(0, shown).filter(x => !x.side).length; document.getElementById('simSc').textContent = `${hs} - ${shown - hs}`; }
+      if (k < 1) requestAnimationFrame(tick); else { LOCK = false; done(); }
+    })();
+  }
+  // block double taps on every other Simulate button too
+  let lastSim = 0;
+  document.addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    if (LOCK) { e.stopImmediatePropagation(); e.preventDefault(); return; }
+    // any other Simulate button (events, Player Career, tournaments): at most one every 3 seconds
+    if (/simulat/i.test(b.textContent) || b.dataset.r === 'sim') { const now = performance.now(); if (now - lastSim < 3000) { e.stopImmediatePropagation(); e.preventDefault(); toastMsg('Slow down: one simulation at a time'); return; } lastSim = now; }
+  }, true);
+
   /* ---------------- match report ---------------- */
   function report(title, A, B, r) {
     const box = document.getElementById('mcx'); if (!box) return;
@@ -74,9 +101,14 @@
     const assist = Math.min(10, (RTS.slump || 0) * 4);
     if (assist) { oppSq.forEach(p => p.ovr = Math.max(45, p.ovr - assist)); ALL['rts-opp'].ovr -= assist; }
     if (sim) {
+      if (LOCK) return;
       const A = { ovr:xiOvr(RTS), sq:xiSquad(RTS), code:me.code }, B = { ovr:ALL['rts-opp'].ovr, sq:oppSq, code:ALL['rts-opp'].code };
       const r = simMatch(A, B);
-      const m = rtsResult(r.hs, r.as); rtsShow('home'); report(`Simulated · ${DIVS[RTS.div]}`, A, B, r); setTimeout(() => toastMsg(m), 50);
+      watch(`Simulating · ${DIVS[RTS.div]}`, A, B, r, () => {
+        const c0 = PROFILE.coins, m = rtsResult(r.hs, r.as), gain = PROFILE.coins - c0;
+        const cut = Math.floor(gain / 2); PROFILE.coins -= cut; saveRTS();           // simulated matches pay half
+        rtsShow('home'); report(`Simulated · ${DIVS[RTS.div]}`, A, B, r); setTimeout(() => toastMsg(m.replace(/\+[\d,]+ coins/, `+${fmt(gain - cut)} coins (half for simulating)`)), 50);
+      });
       return;
     }
     CUR_MATCH = { kind:'custom', done:res => { const m = rtsResult(res.hs, res.as); rtsShow('home'); setTimeout(() => toastMsg(m), 50); }, quit:() => rtsShow('home') };
@@ -104,8 +136,9 @@
     if (!sim) return _mp(sim);
     const S2 = MC.season, fxm = S2.rounds[S2.round].find(f => f.includes(MC.club)), myIdx = fxm[0] === MC.club ? 0 : 1, oid = fxm[1 - myIdx];
     const mine = { ovr:xiOvr(MC), sq:xiSquad(MC), code:ALL[MC.club].code }, them = { ovr:ALL[oid].ovr, sq:squadOf(oid), code:ALL[oid].code };
-    const r = myIdx === 0 ? simMatch(mine, them) : simMatch(them, mine);
-    mcAfter(r.hs, r.as); mcShow('home'); setTimeout(() => toastMsg(`${ALL[fxm[0]].code} ${r.hs}-${r.as} ${ALL[fxm[1]].code}`), 50);
+    if (LOCK) return;
+    const r = myIdx === 0 ? simMatch(mine, them) : simMatch(them, mine), H = myIdx === 0 ? mine : them, Aw = myIdx === 0 ? them : mine;
+    watch(`Simulating · Matchday ${S2.round + 1}`, H, Aw, r, () => { mcAfter(r.hs, r.as); mcShow('home'); report('Full time', H, Aw, r); });
   };
 
   /* ---------------- disclaimer ---------------- */
