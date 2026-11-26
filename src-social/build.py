@@ -58,6 +58,9 @@ s = inject(s, open(os.path.join(R, 'src-gfx', 'kickoff-street.js')).read(), 'STR
 s = inject(s, open(os.path.join(R, 'src-gfx', 'kickoff-extras.js')).read(), 'EXTRAS')
 s = inject(s, open(os.path.join(R, 'src-gfx', 'kickoff-cam.js')).read(), 'CAMX')
 s = inject(s, open(os.path.join(R, 'src-gfx', 'kickoff-sim.js')).read(), 'SIMX')
+s = once(s, "  if (sp > .4 && p.slide <= 0 && S.frozen !== p) { const hum = p === p.team.ctrl && isHuman(p.team);", "  if (p.role === 'GK' && window.gkFace && gkFace(p, dt)) {} else if (sp > .4 && p.slide <= 0 && S.frozen !== p) { const hum = p === p.team.ctrl && isHuman(p.team);", 'gkface')
+s = once(s, "g.body.rotation.z = p.diveDir * Math.sin(t * Math.PI / 2) * 1.35;", "g.body.rotation.z = -p.diveDir * Math.sin(t * Math.PI / 2) * 1.35;", 'gkdive2')
+s = inject(s, open(os.path.join(R, 'src-gfx', 'kickoff-gk.js')).read(), 'GKX')
 s = inject(s, rd('kickoff.js') + '\n' + rd('social.js'))
 open(p, 'w').write(s)
 

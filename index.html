@@ -6537,7 +6537,7 @@ function updatePlayer(p, dt) {
   p.pos.addScaledVector(p.vel, dt);
   p.pos.x = clamp(p.pos.x, -PL - 4, PL + 4); p.pos.z = clamp(p.pos.z, -PW - 3, PW + 3);
   const sp = Math.hypot(p.vel.x, p.vel.z);
-  if (sp > .4 && p.slide <= 0 && S.frozen !== p) { const hum = p === p.team.ctrl && isHuman(p.team); let da = Math.atan2(p.vel.x, p.vel.z) - p.face; da = Math.atan2(Math.sin(da), Math.cos(da)); p.face += da * Math.min(1, dt * (hum ? (ball.owner === p ? 16 : 22) : ball.owner === p ? 9 : 12)); }
+  if (p.role === 'GK' && window.gkFace && gkFace(p, dt)) {} else if (sp > .4 && p.slide <= 0 && S.frozen !== p) { const hum = p === p.team.ctrl && isHuman(p.team); let da = Math.atan2(p.vel.x, p.vel.z) - p.face; da = Math.atan2(Math.sin(da), Math.cos(da)); p.face += da * Math.min(1, dt * (hum ? (ball.owner === p ? 16 : 22) : ball.owner === p ? 9 : 12)); }
   if (S.frozen && S.setp && S.frozen !== p) {
     const r = S.setp.kind === 'throw' ? 2.5 : p.team === S.setp.team ? 2.5 : 9.15;
     const dx = p.pos.x - ball.pos.x, dz = p.pos.z - ball.pos.z, d = Math.hypot(dx, dz) || .01;
@@ -6590,7 +6590,7 @@ function animatePlayer(p, dt) {
   }
   if (p.dive > 0) {
     const t = Math.min(1, (.7 - p.dive) * 3);
-    g.body.rotation.z = p.diveDir * Math.sin(t * Math.PI / 2) * 1.35; g.body.position.y = .25 * Math.sin(t * Math.PI);
+    g.body.rotation.z = -p.diveDir * Math.sin(t * Math.PI / 2) * 1.35; g.body.position.y = .25 * Math.sin(t * Math.PI);
     g.arms[0].rotation.set(Math.PI, 0, .25); g.arms[1].rotation.set(Math.PI, 0, -.25); g.elbows[0].rotation.x = g.elbows[1].rotation.x = 0;
     g.legs[0].rotation.x = g.legs[1].rotation.x = .1; g.knees[0].rotation.x = g.knees[1].rotation.x = .3;
   }
@@ -9431,6 +9431,7 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.se
     CEL.opp.forEach(p => {
       const s = CEL.st.get(p);
       s.vel.multiplyScalar(Math.max(0, 1 - dt * 2.5)); s.pos.addScaledVector(s.vel, dt);
+      if (s.role === 'gk') turnTo(s, Math.atan2(ball.pos.x - s.pos.x, ball.pos.z - s.pos.z), dt, 7);   // beaten keeper turns to watch it hit the net
       p.pos.copy(s.pos); p.vel.copy(s.vel); p.face = s.face;
     });
   };
@@ -12191,6 +12192,47 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.se
 
 </script>
 <!--SIMX-END-->
+<!--GKX-START-->
+<script>
+/* Kickoff Rivals: goalkeepers dive the right way and keep watching the ball.
+   - When a dive starts, the keeper squares up to the ball and dives to the side the shot is heading.
+   - His facing is locked for the dive, so running sideways can't twist the dive the wrong way.
+   - Outside a dive (including after a missed save) he turns to keep his eyes on the ball. */
+(function () {
+  if (typeof aiGK !== 'function') return;
+  const wrap = a => Math.atan2(Math.sin(a), Math.cos(a));
+  // how far a world point is to the keeper's right (local +x of his body)
+  const side = (p, wx, wz) => (wx - p.pos.x) * Math.cos(p.face) - (wz - p.pos.z) * Math.sin(p.face);
+
+  const _ai = aiGK;
+  aiGK = function (p, dt) {
+    const was = p.dive > 0;
+    const r = _ai(p, dt);
+    if (p.dive > 0 && !was) {
+      const s = p.team.side, gx = -PL * s;
+      const tt = Math.abs(ball.vel.x) > .5 ? Math.max(0, (gx - ball.pos.x) / ball.vel.x) : 0;
+      const pz = ball.pos.z + ball.vel.z * tt;
+      // square up to the ball, then dive towards where it crosses the line
+      p.face = Math.atan2(ball.pos.x - p.pos.x, ball.pos.z - p.pos.z);
+      p.diveFace = p.face; p.diveZ = pz;
+      p.diveDir = Math.sign(side(p, gx, pz)) || (pz > p.pos.z ? -s : s);
+    }
+    return r;
+  };
+
+  window.gkFace = function (p, dt) {
+    if (ball.owner === p || S.frozen === p || p.slide > 0) return false;
+    if (p === p.team.ctrl && typeof isHuman === 'function' && isHuman(p.team)) return false;
+    if (p.dive > 0 && p.diveFace != null) { p.face = p.diveFace; return true; }
+    p.diveFace = null;
+    const want = Math.atan2(ball.pos.x - p.pos.x, ball.pos.z - p.pos.z);
+    p.face += wrap(want - p.face) * Math.min(1, dt * (p.stun > 0 ? 4 : 9));
+    return true;
+  };
+})();
+
+</script>
+<!--GKX-END-->
 <!--SOCIAL-START-->
 <script>
 /* ================= Kickoff Rivals: accounts, friends, lobbies, matchmaking with bot fill ================= */

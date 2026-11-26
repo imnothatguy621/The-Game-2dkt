@@ -96,6 +96,7 @@
     CEL.opp.forEach(p => {
       const s = CEL.st.get(p);
       s.vel.multiplyScalar(Math.max(0, 1 - dt * 2.5)); s.pos.addScaledVector(s.vel, dt);
+      if (s.role === 'gk') turnTo(s, Math.atan2(ball.pos.x - s.pos.x, ball.pos.z - s.pos.z), dt, 7);   // beaten keeper turns to watch it hit the net
       p.pos.copy(s.pos); p.vel.copy(s.vel); p.face = s.face;
     });
   };
