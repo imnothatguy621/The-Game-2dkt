@@ -64,6 +64,7 @@ s = inject(s, open(os.path.join(R, 'src-gfx', 'kickoff-gk.js')).read(), 'GKX')
 s = inject(s, open(os.path.join(R, 'src-gfx', 'kickoff-real.js')).read(), 'REALX')
 s = once(s, "  const pick = arr => arr[(Math.random() * arr.length) | 0];", "  if (!look && name && !isRef && window.lookFor) look = lookFor(name);\n  const pick = arr => arr[(Math.random() * arr.length) | 0];", 'looks1')
 s = inject(s, open(os.path.join(R, 'src-gfx', 'kickoff-portrait.js')).read(), 'PORTX')
+s = inject(s, open(os.path.join(R, 'src-gfx', 'kickoff-xi.js')).read(), 'XIX')
 s = inject(s, rd('kickoff.js') + '\n' + rd('social.js'))
 open(p, 'w').write(s)
 
