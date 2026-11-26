@@ -310,6 +310,12 @@
   const _restart = restart;
   restart = function (kind, team, x, z) {
     _restart(kind, team, x, z);
+    // a save the keeper held on to: shown now that the ball is out of play
+    const pd = D.pending; D.pending = null;
+    if (pd && SET.replays === 0 && !S.net && S.clock - pd.at < 20 && !pd.sh.used) {
+      const ei = REC.buf.indexOf(pd.frame);
+      if (ei > 60) { setTimeout(() => { if (S.state === 'setpiece') begin('chance', pd.sh, ei); }, 50); return; }
+    }
     const sh = SHOT.last;
     if (SET.replays !== 0 || !sh || sh.used || S.net || S.clock - sh.clock > 4.5) return;
     if (kind !== 'goalkick' && kind !== 'corner') return;
@@ -324,10 +330,11 @@
   step = function (dt) {
     _step(dt);
     const sh = SHOT.last, o = ball.owner;
-    if (SET.replays !== 0 || !sh || sh.used || S.net || S.state !== 'play' || !o || o.role !== 'GK' || o.team.i === sh.team) return;
+    if (SET.replays !== 0 || !sh || sh.used || D.pending || S.net || S.state !== 'play' || !o || o.role !== 'GK' || o.team.i === sh.team) return;
     if (S.clock - sh.clock > 3 || sh.xg < .16 || S.clock - (D.lastChance || -99) < 25) return;
     if (!o.hold || o.hold < .5) return;
+    // never replay while the ball is live: wait for the next stoppage
     sh.outcome = 'saved'; D.lastChance = S.clock;
-    begin('chance', sh, REC.buf.length - 1);
+    D.pending = { sh, frame: REC.buf[REC.buf.length - 1], at: S.clock };
   };
 })();

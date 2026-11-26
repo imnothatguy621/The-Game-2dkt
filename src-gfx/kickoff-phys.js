@@ -144,12 +144,7 @@
     }
     // rolling ball: no knuckle or lift once it is on the turf
     if (P.y <= BR + .001 && v.y === 0) { b.kn = 0; if (b.w) { const d = Math.pow(.15, dt); b.w.x *= d; b.w.z *= d; b.w.y *= d; } }
-    // spin the ball mesh on its real spin axis
-    if (typeof ballMesh !== 'undefined' && b.w) {
-      const wl = Math.hypot(b.w.x, b.w.y, b.w.z);
-      if (wl > .5) ballMesh.rotateOnWorldAxis(AXIS.set(b.w.x / wl, b.w.y / wl, b.w.z / wl), Math.min(wl, 60) * dt);
-      if (b.kn) ballMesh.rotation.y += .4 * dt;
-    }
+    // (the ball mesh is spun from this spin vector in ballSpinVis, kickoff-perf.js)
   };
   const AXIS = new THREE.Vector3();
 

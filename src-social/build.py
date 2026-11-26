@@ -65,6 +65,10 @@ s = inject(s, open(os.path.join(R, 'src-gfx', 'kickoff-real.js')).read(), 'REALX
 s = once(s, "  const pick = arr => arr[(Math.random() * arr.length) | 0];", "  if (!look && name && !isRef && window.lookFor) look = lookFor(name);\n  const pick = arr => arr[(Math.random() * arr.length) | 0];", 'looks1')
 s = inject(s, open(os.path.join(R, 'src-gfx', 'kickoff-portrait.js')).read(), 'PORTX')
 s = inject(s, open(os.path.join(R, 'src-gfx', 'kickoff-xi.js')).read(), 'XIX')
+s = once(s, "const HEADGEO = new THREE.SphereGeometry(.12, 8, 6);", "const HEADGEO = new THREE.IcosahedronGeometry(.125, 0);", 'crowdheads')
+s = once(s, "const spacing = MOBILE ? .78 : .62, per = Math.floor(len / spacing), SECT = 5;", "const spacing = MOBILE ? .78 : .62, per = Math.floor(len / spacing), SECT = 2;", 'crowdsect')
+s = once(s, "  if (Math.hypot(ball.vel.x, ball.vel.z) > .1) { ballMesh.rotation.x += ball.vel.z / BR * dt; ballMesh.rotation.z -= ball.vel.x / BR * dt; }", "  if (typeof ballSpinVis === 'function') ballSpinVis(dt);", 'ballspin')
+s = inject(s, open(os.path.join(R, 'src-gfx', 'kickoff-perf.js')).read(), 'PERFX')
 s = inject(s, rd('kickoff.js') + '\n' + rd('social.js'))
 open(p, 'w').write(s)
 

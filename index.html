@@ -5747,7 +5747,7 @@ function tier(grp, len, rows, y0, z0, rise, depth, seatCol, fill) {
   const stepGeo = new THREE.BoxGeometry(len, rise, depth);
   for (let r = 0; r < rows; r++) { const st = new THREE.Mesh(stepGeo, r % 2 ? conc : seat); st.position.set(0, y0 + rise * (r + .5), z0 + r * depth); st.receiveShadow = false; grp.add(st); }
   const back = new THREE.Mesh(new THREE.BoxGeometry(len, rows * rise + 2, .6), conc); back.position.set(0, y0 + rows * rise / 2 + 1, z0 + rows * depth); grp.add(back);
-  const spacing = MOBILE ? .78 : .62, per = Math.floor(len / spacing), SECT = 5;
+  const spacing = MOBILE ? .78 : .62, per = Math.floor(len / spacing), SECT = 2;
   const ims = [];
   for (let s = 0; s < SECT; s++) { const im = new THREE.InstancedMesh(FAN, new THREE.MeshLambertMaterial({ color:0xffffff }), Math.ceil(per * rows / SECT) + 2); im.count = 0; ims.push(im); grp.add(im); crowd.push({ m:im, ph:Math.random() * 6 }); }
   const m = new THREE.Matrix4();
@@ -6742,7 +6742,7 @@ function render(dt) {
   if (S.state === 'grounds' && typeof groundsRender === 'function') { groundsRender(dt); return; }
   if (S.state !== 'menu') { for (const p of S.players) animatePlayer(p, dt); updateRef(dt); }
   ballMesh.position.copy(ball.pos);
-  if (Math.hypot(ball.vel.x, ball.vel.z) > .1) { ballMesh.rotation.x += ball.vel.z / BR * dt; ballMesh.rotation.z -= ball.vel.x / BR * dt; }
+  if (typeof ballSpinVis === 'function') ballSpinVis(dt);
   ballBlob.position.set(ball.pos.x, .025, ball.pos.z); ballBlob.scale.setScalar(.38 + ball.pos.y * .05);
   const me = S.teams[S.me], tt = performance.now() / 1000;
   if (me && me.ctrl && S.state !== 'menu') { marker.visible = true; marker.position.set(me.ctrl.pos.x, Math.sin(tt * 5.5) * .08, me.ctrl.pos.z); } else marker.visible = false;
@@ -6940,7 +6940,7 @@ function crowdShader(mat) {
       #endif`);
   };
 }
-const HEADGEO = new THREE.SphereGeometry(.12, 8, 6);
+const HEADGEO = new THREE.IcosahedronGeometry(.125, 0);
 for (const c of crowd) {
   const body = c.m, n = body.count; if (!n) continue;
   crowdShader(body.material);
@@ -8897,12 +8897,7 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.se
     }
     // rolling ball: no knuckle or lift once it is on the turf
     if (P.y <= BR + .001 && v.y === 0) { b.kn = 0; if (b.w) { const d = Math.pow(.15, dt); b.w.x *= d; b.w.z *= d; b.w.y *= d; } }
-    // spin the ball mesh on its real spin axis
-    if (typeof ballMesh !== 'undefined' && b.w) {
-      const wl = Math.hypot(b.w.x, b.w.y, b.w.z);
-      if (wl > .5) ballMesh.rotateOnWorldAxis(AXIS.set(b.w.x / wl, b.w.y / wl, b.w.z / wl), Math.min(wl, 60) * dt);
-      if (b.kn) ballMesh.rotation.y += .4 * dt;
-    }
+    // (the ball mesh is spun from this spin vector in ballSpinVis, kickoff-perf.js)
   };
   const AXIS = new THREE.Vector3();
 
@@ -9309,6 +9304,12 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.se
   const _restart = restart;
   restart = function (kind, team, x, z) {
     _restart(kind, team, x, z);
+    // a save the keeper held on to: shown now that the ball is out of play
+    const pd = D.pending; D.pending = null;
+    if (pd && SET.replays === 0 && !S.net && S.clock - pd.at < 20 && !pd.sh.used) {
+      const ei = REC.buf.indexOf(pd.frame);
+      if (ei > 60) { setTimeout(() => { if (S.state === 'setpiece') begin('chance', pd.sh, ei); }, 50); return; }
+    }
     const sh = SHOT.last;
     if (SET.replays !== 0 || !sh || sh.used || S.net || S.clock - sh.clock > 4.5) return;
     if (kind !== 'goalkick' && kind !== 'corner') return;
@@ -9323,11 +9324,12 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.se
   step = function (dt) {
     _step(dt);
     const sh = SHOT.last, o = ball.owner;
-    if (SET.replays !== 0 || !sh || sh.used || S.net || S.state !== 'play' || !o || o.role !== 'GK' || o.team.i === sh.team) return;
+    if (SET.replays !== 0 || !sh || sh.used || D.pending || S.net || S.state !== 'play' || !o || o.role !== 'GK' || o.team.i === sh.team) return;
     if (S.clock - sh.clock > 3 || sh.xg < .16 || S.clock - (D.lastChance || -99) < 25) return;
     if (!o.hold || o.hold < .5) return;
+    // never replay while the ball is live: wait for the next stoppage
     sh.outcome = 'saved'; D.lastChance = S.clock;
-    begin('chance', sh, REC.buf.length - 1);
+    D.pending = { sh, frame: REC.buf[REC.buf.length - 1], at: S.clock };
   };
 })();
 
@@ -12607,6 +12609,69 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.se
 
 </script>
 <!--XIX-END-->
+<!--PERFX-START-->
+<script>
+/* Kickoff Rivals: smoother frame rate and a better-behaved ball.
+   - Dynamic resolution: if the game drops below ~52 fps during a match, the render resolution steps down a little
+     (never below 1x), and steps back up when there is headroom. Keeps the game at full speed on any laptop.
+   - The game slows down when frames take too long (each frame is capped), so holding 60 fps also keeps the game speed right.
+   - Ball sub-steps: a fast ball moves in smaller steps, so it can't skip through a post, the bar or the net.
+   - Ball spin you can see: rolling uses true roll-without-slipping, flights use the real spin axis (no double spinning). */
+(function () {
+  /* ---------------- dynamic resolution ---------------- */
+  const PERF = window.PERF = { on: true, pr: null, max: null, min: 1, log: [] };
+  let acc = 0, frames = 0, good = 0, lastT = performance.now();
+  const _present = present;
+  present = function (sc, cam) {
+    _present(sc, cam);
+    const now = performance.now(), dt = now - lastT; lastT = now;
+    if (!PERF.on || document.hidden || dt > 1000) return;
+    const inMatch = S.state === 'play' || S.state === 'setpiece' || S.state === 'kickoff' || S.state === 'replay' || S.state === 'goal';
+    if (!inMatch) return;
+    acc += dt; frames++;
+    if (acc < 1500) return;
+    const fps = frames * 1000 / acc; acc = 0; frames = 0;
+    if (PERF.max == null) { PERF.max = renderer.getPixelRatio(); PERF.pr = PERF.max; }
+    let next = PERF.pr;
+    if (fps < 52 && PERF.pr > PERF.min) { next = Math.max(PERF.min, PERF.pr - (fps < 40 ? .35 : .2)); good = 0; }
+    else if (fps > 58) { if (++good >= 3 && PERF.pr < PERF.max) { next = Math.min(PERF.max, PERF.pr + .15); good = 0; } }
+    else good = 0;
+    if (Math.abs(next - PERF.pr) > .01) {
+      PERF.pr = next; PERF.log.push(fps.toFixed(0) + 'fps→' + next.toFixed(2));
+      renderer.setPixelRatio(next); resize(); if (typeof gfxResize === 'function') gfxResize();
+    }
+  };
+  // a new quality setting resets the ceiling
+  if (typeof applyQuality === 'function') { const _aq = applyQuality; applyQuality = function (q) { _aq(q); PERF.max = null; PERF.pr = null; good = 0; }; }
+
+  /* ---------------- ball sub-steps ---------------- */
+  const _bp = ballPhysics;
+  ballPhysics = function (dt) {
+    const b = ball;
+    if (b.owner || PERF.sub === false) return _bp(dt);
+    const sp = b.vel.length(), n = Math.min(4, Math.ceil(sp * dt / .22));
+    if (n <= 1) return _bp(dt);
+    for (let i = 0; i < n; i++) { _bp(dt / n); if (b.owner) break; }
+  };
+
+  /* ---------------- ball spin you can see ---------------- */
+  const AX = new THREE.Vector3(), VIS = { x: 0, y: 0, z: 0 };
+  window.ballSpinVis = function (dt) {
+    if (typeof ballMesh === 'undefined') return;
+    const b = ball, v = b.vel, onGround = b.owner || (b.pos.y <= BR + .03 && Math.abs(v.y) < .5);
+    let wx, wy, wz;
+    if (onGround) { wx = v.z / BR; wy = 0; wz = -v.x / BR; }                         // rolling without slipping: ω = (up × v) / r
+    else if (b.w) { wx = b.w.x; wy = b.w.y; wz = b.w.z; }                          // in flight: the real spin vector
+    else { const d = Math.pow(.8, dt); wx = VIS.x * d; wy = VIS.y * d; wz = VIS.z * d; }   // keeps the spin it left the boot with
+    VIS.x = wx; VIS.y = wy; VIS.z = wz;
+    const wl = Math.hypot(wx, wy, wz);
+    if (wl > .3) ballMesh.rotateOnWorldAxis(AX.set(wx / wl, wy / wl, wz / wl), Math.min(wl, 45) * dt);
+    if (b.kn) ballMesh.rotation.y += .4 * dt;
+  };
+})();
+
+</script>
+<!--PERFX-END-->
 <!--SOCIAL-START-->
 <script>
 /* ================= Kickoff Rivals: accounts, friends, lobbies, matchmaking with bot fill ================= */
