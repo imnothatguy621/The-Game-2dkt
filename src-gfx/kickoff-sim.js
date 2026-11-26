@@ -141,18 +141,38 @@
     watch(`Simulating · Matchday ${S2.round + 1}`, H, Aw, r, () => { mcAfter(r.hs, r.as); mcShow('home'); report('Full time', H, Aw, r); });
   };
 
-  /* ---------------- disclaimer ---------------- */
-  const DISC = '⚠️ Kickoff Rivals is a fan-made game that is still being built. It may have bugs, glitches or lose saved progress. You play at your own risk: the creator is not responsible for any bugs, lost progress or lost data. Not affiliated with EA Sports, FIFA, any league or any club.';
+  /* ---------------- disclaimer + terms ---------------- */
+  const DISC = '⚠️ <b>Play at your own risk.</b> If you get caught playing (in class, at school, at work or past bedtime), the creator is <b>not responsible</b>. The game may also have bugs or lose progress. By playing you agree to the <a href="#" id="tosLink">Terms &amp; Conditions</a>.';
+  const TOS = [
+    ['1. Getting caught', 'If you play Kickoff Rivals somewhere you are not supposed to (in class, at school, at work, during homework time or after bedtime) and you get caught, that is on you. The creator is not responsible for detentions, confiscated devices, grounding, lost screen time or anything else that happens.'],
+    ['2. Bugs and saves', 'The game is a work in progress. It can have bugs and glitches, and saved progress (coins, cards, clubs, careers) is stored in your browser and can be lost if you clear your browser data or switch devices. The creator is not responsible for lost progress.'],
+    ['3. No real money', 'Coins, packs and cards in the game are fake and have no real-world value. They cannot be bought, sold or exchanged for real money.'],
+    ['4. Play fair online', 'Be respectful in online and social features. No cheating, spamming, abusive names or messages. The creator can reset or remove accounts that break this.'],
+    ['5. Admin code', 'The admin code is for the creator and testers. Using it on a shared or online save is at your own risk.'],
+    ['6. Not official', 'Kickoff Rivals is a fan-made game. It is not affiliated with or endorsed by EA Sports, FIFA, any league, club or player. All players, teams and names are made up.'],
+    ['7. Credits', 'Ball physics inspired by Johan Forslund\'s football-physics project and the Physics World article on the physics of football. Built with three.js.'],
+    ['8. Take breaks', 'Look after yourself: take breaks, rest your eyes and do not let the game get in the way of school, sleep or friends.'],
+    ['9. Changes', 'These terms can change as the game is updated. Playing the game means you accept the latest version.']
+  ];
+  function showTOS() {
+    const box = document.getElementById('mcx'); if (!box) return;
+    box.innerHTML = `<div class="box" style="max-width:560px"><h3>📜 Terms &amp; Conditions</h3><p class="mini">Last updated: November 2026</p>
+      <div style="max-height:55vh;overflow:auto;text-align:left;font-size:13px;line-height:1.5;padding-right:4px">${TOS.map(([h, t]) => `<p style="margin:10px 0 2px"><b>${h}</b></p><p style="margin:0;opacity:.85">${t}</p>`).join('')}</div>
+      <div class="cta" style="margin-top:12px"><button class="big" type="button" id="tosOk">I agree</button></div></div>`;
+    box.classList.add('on');
+    document.getElementById('tosOk').onclick = () => { try { localStorage.setItem('kr_tos', '1'); } catch (e) {} box.classList.remove('on'); };
+  }
+  window.showTOS = showTOS;
+  document.addEventListener('click', e => { if (e.target && e.target.id === 'tosLink') { e.preventDefault(); showTOS(); } });
   const dcss = document.createElement('style');
-  dcss.textContent = '#discl{max-width:640px;margin:12px auto 0;font-size:11px;line-height:1.5;opacity:.65;text-align:center}';
+  dcss.textContent = '#discl{max-width:640px;margin:12px auto 0;font-size:11px;line-height:1.5;opacity:.7;text-align:center}#discl a{color:#ffd23f}';
   document.head.appendChild(dcss);
+  const put = card => { if (!card) return; const o = card.querySelector('#discl'); if (o) o.remove(); card.insertAdjacentHTML('beforeend', `<p id="discl">${DISC}</p>`); };
   const _home = showHome;
-  showHome = function () {
-    _home();
-    const card = $('home') && $('home').querySelector('.card');
-    if (card && !card.querySelector('#discl')) card.insertAdjacentHTML('beforeend', `<p id="discl">${DISC}</p>`);
-  };
+  showHome = function () { _home(); put($('home') && $('home').querySelector('.card')); };
   const _ss = showSettings;
-  showSettings = function () { _ss(); const card = $('settings').querySelector('.card'); if (card && !card.querySelector('#discl')) card.insertAdjacentHTML('beforeend', `<p id="discl">${DISC}</p>`); };
+  showSettings = function () { _ss(); put($('settings').querySelector('.card')); };
+  let agreed = false; try { agreed = localStorage.getItem('kr_tos') === '1'; } catch (e) {}
+  if (!agreed) setTimeout(() => { const b = document.getElementById('mcx'); if (b && !b.classList.contains('on')) showTOS(); else setTimeout(showTOS, 4000); }, 1500);
   try { if (S.state === 'menu' && $('home') && !$('home').classList.contains('hide')) showHome(); } catch (e) {}
 })();
