@@ -25,6 +25,7 @@
 
   /* ================= shot types ================= */
   function shotType(p, F) {
+    if (window.__shotType) return window.__shotType;
     if (F && F.h && F.h.press) return 'finesse';
     if (KEY('KeyQ')) return 'low';
     const gx = PL * p.team.side, d = Math.hypot(gx - ball.pos.x, ball.pos.z), az = Math.abs(ball.pos.z);
@@ -44,7 +45,8 @@
       err = (.3 + (pr < 1.5 ? .6 : 0) + Math.max(0, dist - 24) * .09) * (1.4 - Math.max(t.K.acc, .8) * .6);
       curl = Math.sign(tz);
     } else {
-      tz = (aim || sz) * GW * .74;
+      const gkz = opp(t).players.find(q => q.role === 'GK'), away = gkz && Math.abs(gkz.pos.z) > .25 ? -Math.sign(gkz.pos.z) : sz;
+      tz = (aim || away) * GW * .74;                                   // low and hard into the side the keeper has left
       speed = (18 + power * 13) * t.K.shot;
       h = .28 + power * .25;
       err = (.25 + (pr < 1.5 ? .6 : 0) + Math.max(0, dist - 14) * .08) * (1.4 - Math.max(t.K.acc, .8) * .6);

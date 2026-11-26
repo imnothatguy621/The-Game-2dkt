@@ -5948,7 +5948,7 @@ function setupTeams(cfg) {
     const given = cfg.squads && cfg.squads[ti];
     const sq = given || (typeof autoSquad === 'function' ? autoSquad(def) : null);
     const ovr = given ? Math.round(given.reduce((a, p) => a + p.ovr, 0) / 11) : def.ovr;
-    const t = { i:ti, def, kit:kits[ti], side:ti === 0 ? 1 : -1, ctl, op, ovr, K:(k => { if (ctl !== 'ai' && !op) { k.gk = k.gk * 1.15 + .05; k.tackle += .07; } return k; })(teamK(ovr, op, boost)), players:[], score:0, shots:0, onT:0, poss:0, passes:0,
+    const t = { i:ti, def, kit:kits[ti], side:ti === 0 ? 1 : -1, ctl, op, ovr, K:(k => { if (ctl !== 'ai' && !op) { k.gk = k.gk * 1.15 + .05; k.tackle += .07; k.shot = 1 + Math.max(0, ovr - 95) * .004; k.acc = Math.min(.99, k.acc + Math.max(0, ovr - 100) * .002); } if (ctl === 'ai' && !op) k.gk = Math.min(k.gk, 1.0); return k; })(teamK(ovr, op, boost)), players:[], score:0, shots:0, onT:0, poss:0, passes:0,
       chaser:null, cover:null, ctrl:null, buf:null, power:0, charging:false, lock:cfg.lock ? cfg.lock[ti] : null, sq };
     FORM.forEach((f, i) => {
       const num = i === 0 ? 1 : [0,2,4,5,3,8,6,10,7,9,11][i];
@@ -7582,7 +7582,7 @@ function guestEnd(res) {
 (() => { try { const d = new Date().toISOString().slice(0, 10); if (localStorage.getItem('kr_ping') === d || !navigator.onLine) return; localStorage.setItem('kr_ping', d); fetch(SB_URL + '/rest/v1/', { headers:{ apikey:SB_KEY } }).catch(() => {}); } catch (e) {} })();
 
 /* ================= shared: profile wallet, cards, squad editor, packs ================= */
-const MAX_OVR = 130;
+const MAX_OVR = 150;
 const PROFILE = (() => { try { return Object.assign({ coins:1000, xp:0, lastFree:'' }, JSON.parse(localStorage.getItem('kr_profile') || '{}')); } catch (e) { return { coins:1000, xp:0, lastFree:'' }; } })();
 const saveProfile = () => { try { localStorage.setItem('kr_profile', JSON.stringify(PROFILE)); } catch (e) {} };
 const fmt = n => n.toLocaleString('en-US');
@@ -7622,7 +7622,7 @@ css.textContent = `
 .bar i{display:block;height:100%;background:linear-gradient(90deg,#3ddc84,#ffd23f)}
 `;
 document.head.appendChild(css);
-const tierOf = o => o < 70 ? 0 : o < 80 ? 1 : o < 90 ? 2 : o < 100 ? 3 : o < 115 ? 4 : 5;
+const tierOf = o => o < 70 ? 0 : o < 80 ? 1 : o < 90 ? 2 : o < 100 ? 3 : o < 115 ? 4 : o < 130 ? 5 : o < 140 ? 6 : 7;
 let UID = Date.now() % 1e6;
 function mkPlayer(base, ovr, extra) { return Object.assign({ uid:'u' + (UID++), pid:base.id || null, name:base.name, pos:base.pos, nat:base.nat || '', ovr:Math.min(MAX_OVR, ovr) }, extra || {}); }
 const GIVEN = ['Arjun','Leo','Mateo','Kai','Noah','Ravi','Theo','Sami','Luca','Omar','Yuki','Diego','Elias','Felix','Hugo','Ivan','Jonas','Marco','Nico','Rafa','Tariq','Zane','Aryan','Kabir','Dev','Rohan','Ishaan','Vihaan','Aditya','Nikhil'];
@@ -7690,6 +7690,8 @@ const PACKS = [
   { id:'elite', n:'Elite Pack', cost:10000, desc:'2 stars 84-89 + 1 gold', open:() => [realPick(84, 89), realPick(84, 89), realPick(78, 84)] },
   { id:'hero', n:'Hero Pack', cost:25000, desc:'1 boosted superstar (+6, up to 98)', open:() => { const p = realPick(87, 92); p.ovr = Math.min(MAX_OVR, p.ovr + 6); p.hero = true; return [p]; } },
   { id:'mythic', n:'Mythic Pack', cost:60000, desc:'1 mythic card (105-115)', open:() => { const p = realPick(86, 92); p.ovr = Math.round(rnd(105, 115)); p.hero = true; return [p]; } },
+  { id:'cosmic', n:'Cosmic Pack', cost:150000, desc:'1 cosmic card (130-138) with a PlayStyle+', open:() => { const p = realPick(88, 94); p.ovr = Math.round(rnd(130, 138)); p.hero = true; p.rar = 'cosmic'; return [p]; } },
+  { id:'galactic', n:'Galactic Pack', cost:400000, desc:'1 galactic card (140-150) with 2 PlayStyle+', open:() => { const p = realPick(89, 95); p.ovr = Math.round(rnd(140, 150)); p.hero = true; p.rar = 'galactic'; return [p]; } },
 ];
 const trainCost = ovr => Math.round(120 * Math.pow(1.065, ovr - 60) / 10) * 10;
 
@@ -7697,7 +7699,7 @@ const trainCost = ovr => Math.round(120 * Math.pow(1.065, ovr - 60) / 10) * 10;
 let RTS = (() => { try { return JSON.parse(localStorage.getItem('kr_rts') || 'null'); } catch (e) { return null; } })();
 const saveRTS = () => { try { localStorage.setItem('kr_rts', JSON.stringify(RTS)); } catch (e) {} saveProfile(); };
 const DIVS = ['Division 10','Division 9','Division 8','Division 7','Division 6','Division 5','Division 4','Division 3','Division 2','Division 1','Elite I','Elite II','Elite III','Elite IV','Elite V','Champion'];
-const divOvr = d => Math.min(128, 58 + d * 4.6);
+const divOvr = d => Math.min(116, 58 + d * 4.2);
 function rtsNew(clubId) {
   const players = SLOT_POS.map(p => prospect(p, 60, 60)).concat(['CB','CM','ST','GK','LW','RB','CDM'].map(p => prospect(p, 60, 60)));
   players.forEach(p => p.ovr = 60);
@@ -10089,6 +10091,7 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.se
 
   /* ================= shot types ================= */
   function shotType(p, F) {
+    if (window.__shotType) return window.__shotType;
     if (F && F.h && F.h.press) return 'finesse';
     if (KEY('KeyQ')) return 'low';
     const gx = PL * p.team.side, d = Math.hypot(gx - ball.pos.x, ball.pos.z), az = Math.abs(ball.pos.z);
@@ -10108,7 +10111,8 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.se
       err = (.3 + (pr < 1.5 ? .6 : 0) + Math.max(0, dist - 24) * .09) * (1.4 - Math.max(t.K.acc, .8) * .6);
       curl = Math.sign(tz);
     } else {
-      tz = (aim || sz) * GW * .74;
+      const gkz = opp(t).players.find(q => q.role === 'GK'), away = gkz && Math.abs(gkz.pos.z) > .25 ? -Math.sign(gkz.pos.z) : sz;
+      tz = (aim || away) * GW * .74;                                   // low and hard into the side the keeper has left
       speed = (18 + power * 13) * t.K.shot;
       h = .28 + power * .25;
       err = (.25 + (pr < 1.5 ? .6 : 0) + Math.max(0, dist - 14) * .08) * (1.4 - Math.max(t.K.acc, .8) * .6);
@@ -11113,7 +11117,18 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.se
     intercept:{ n:'Intercept+', k:'tackle', v:.1, d:'Reads play and steals the ball' },
     bruiser:{ n:'Bruiser+', k:'resist', v:.1, d:'Shrugs off challenges' },
     press:{ n:'Press Proven+', k:'resist', v:.15, d:'Very hard to tackle' },
-    aerial:{ n:'Aerial+', k:'head', v:.15, d:'Powerful headers' }
+    aerial:{ n:'Aerial+', k:'head', v:.15, d:'Powerful headers' },
+    trivela:{ n:'Trivela+', k:'shot', v:.06, d:'Outside-of-the-boot strikes with extra pace' },
+    chip:{ n:'Chip Shot+', k:'shot', v:.04, d:'Cleaner, quicker shots' },
+    longball:{ n:'Long Ball Pass+', k:'pass', v:.08, d:'Raking long passes' },
+    whipped:{ n:'Whipped Pass+', k:'pass', v:.05, d:'Fast, curling crosses' },
+    firsttouch:{ n:'First Touch+', k:'resist', v:.12, d:'Kills the ball dead, hard to dispossess' },
+    technical:{ n:'Technical+', k:'resist', v:.1, d:'Tight close control' },
+    jockey:{ n:'Jockey+', k:'tackle', v:.12, d:'Stays on his feet and nicks the ball' },
+    slide:{ n:'Slide Tackle+', k:'tackle', v:.1, d:'Clean sliding challenges' },
+    relentless:{ n:'Relentless+', k:'spd', v:.03, d:'Never stops running' },
+    acrobatic:{ n:'Acrobatic+', k:'head', v:.1, d:'Spectacular headers and volleys' },
+    gamechanger:{ n:'Game Changer++', k:'shot', v:.1, d:'Rare: the biggest shot power boost', rare:true }
   };
   const psFor = p => (X().ps[p.uid] || []);
   // in matches: playstyles act like perks, scaled by the player's rating
@@ -11207,6 +11222,13 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.se
   }
   const GRADES = [['D', .02], ['C', .1], ['B', .25], ['A', .45], ['S', .7]];
   const gradeOf = f => { let g = '–'; for (const [n, t] of GRADES) if (f >= t) g = n; return g; };
+  // new top rarities come with PlayStyle+ already on them
+  function giveRarityPS(p) {
+    if (!p || !p.rar || (X().ps[p.uid] || []).length) return;
+    const pool = Object.keys(PS).filter(k => !PS[k].rare), n = p.rar === 'galactic' ? 2 : 1;
+    for (let i = 0; i < n; i++) addPS(p, pool[(Math.random() * pool.length) | 0]);
+    if (p.rar === 'galactic' && Math.random() < .25) addPS(p, 'gamechanger');
+  }
   function markSeen() { const x = X(); for (const p of RTS.players) if (p.pid) x.seen[p.pid] = 1; }
   function galleryCheck() {
     const x = X(); let gained = 0;
@@ -11218,7 +11240,7 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.se
     if (gained) { x.gtok += gained; toastMsg(`🖼 Gallery grade up! +${gained} Gallery Token${gained > 1 ? 's' : ''}`); }
   }
   const _add = addCards;
-  addCards = function (state, cards) { const n = _add(state, cards); if (state === RTS) { markSeen(); galleryCheck(); saveRTS(); } return n; };
+  addCards = function (state, cards) { const n = _add(state, cards); if (state === RTS) { for (const c of cards) { const own = RTS.players.find(q => q.pid === c.pid && q.ovr === c.ovr && q.rar === c.rar) || RTS.players.find(q => q.uid === c.uid); if (own) { own.rar = own.rar || c.rar; giveRarityPS(own); } } markSeen(); galleryCheck(); saveRTS(); } return n; };
   // holographic and 3D cosmetics on cards
   const _card = cardHTML;
   cardHTML = function (p, opts) {
@@ -11259,6 +11281,9 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.se
   const css = document.createElement('style');
   css.textContent = `
   #hub .card .tabs{flex-wrap:wrap}
+  .pcard.t6{background:linear-gradient(160deg,#0b1a5c,#5a2bd6 45%,#00d4ff);color:#fff;border-color:#9ff3ff;box-shadow:0 0 14px rgba(0,212,255,.55)}
+  .pcard.t7{background:conic-gradient(from 0deg,#ff2d7a,#ffd23f,#2fff9b,#00b3ff,#b14dff,#ff2d7a);background-size:200% 200%;color:#fff;border-color:#fff;box-shadow:0 0 18px rgba(255,255,255,.75);text-shadow:0 1px 3px rgba(0,0,0,.8);animation:galx 3s linear infinite}
+  @keyframes galx{from{filter:hue-rotate(0)}to{filter:hue-rotate(360deg)}}
   .pcard .psb{position:absolute;top:4px;left:50%;transform:translateX(-50%);font-size:8px;letter-spacing:1px;color:#00e5ff;text-shadow:0 0 4px #00e5ff}
   .pcard.holo,.pcard.pristine,.pcard.d3{overflow:hidden}
   .pcard.holo:after,.pcard.pristine:after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;background:linear-gradient(115deg,transparent 20%,rgba(255,255,255,.55) 35%,rgba(120,220,255,.45) 42%,rgba(255,120,240,.4) 50%,transparent 65%);background-size:250% 100%;mix-blend-mode:overlay;animation:holo 2.6s linear infinite}
@@ -11301,7 +11326,12 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.se
           <div class="mini" style="margin:6px 0">${el.length ? 'Eligible: ' : 'No eligible players right now'}</div><div style="display:flex;flex-wrap:wrap;gap:4px">${el.map(p => `<button type="button" data-rx="preview" data-e="${e.id}" data-u="${p.uid}" ${x.evo.length >= 3 ? 'disabled' : ''}>${esc(shortName(p.name))} ${p.ovr}</button>`).join('')}</div></div>`; }).join('')}</div>`;
     }
     if (t === 'lab') {
-      return `<p class="mini">PlayStyles work in matches and scale with a player's rating, so they add to his stats without taking over. Each player can hold up to 3 PlayStyle+ (shown as ◆ on his card). Earn them from Evolutions.</p>
+      const ws = RTS.players.slice().sort((a, b) => b.ovr - a.ovr);
+      return `<p class="mini">PlayStyles work in matches and scale with a player's rating, so they add to his stats without taking over. Each player can hold up to 3 PlayStyle+ (shown as ◆ on his card); a 4th replaces his oldest. Earn them from Evolutions, Cosmic and Galactic cards, or the Workshop.</p>
+        <div class="rx-tile" style="margin:8px 0"><h4>🛠 PLAYSTYLE+ WORKSHOP · 25,000 coins</h4><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:6px">
+          <select id="wsP" style="background:#1b2340;color:#fff;border-radius:6px;padding:6px">${ws.map(p => `<option value="${p.uid}">${esc(p.name)} ${p.ovr} (${psFor(p).length}/3)</option>`).join('')}</select>
+          <select id="wsS" style="background:#1b2340;color:#fff;border-radius:6px;padding:6px">${Object.entries(PS).filter(([, v]) => !v.rare).map(([k, v]) => `<option value="${k}">${v.n}</option>`).join('')}</select>
+          <button type="button" data-rx="workshop" ${PROFILE.coins < 25000 ? 'disabled' : ''}>Add PlayStyle+</button><span class="mini">Coins: ${fmt(PROFILE.coins)}</span></div></div>
         <div class="rx-grid">${Object.entries(PS).map(([k, s]) => { const who = RTS.players.filter(p => psFor(p).includes(k)); return `<div class="rx-tile"><h4>${s.n}</h4><div class="mini">${s.d} · +${Math.round(s.v * 100)}% ${({ spd:'speed', shot:'shot power', pass:'pass speed', tackle:'tackle success', resist:'harder to tackle', head:'header power' })[s.k]} at 90 OVR</div><div class="mini" style="margin-top:6px">${who.length ? who.map(p => esc(shortName(p.name))).join(', ') : 'Nobody yet'}</div></div>`; }).join('')}</div>`;
     }
     if (t === 'sbc') {
@@ -11359,6 +11389,12 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.se
       let cards;
       if (v === 'pick') { const ex = new Set(RTS.players.map(p => p.pid)); const opts = [0, 1, 2].map(() => realPick(84, 90, ex)); box.innerHTML = `<div class="box"><h3>PLAYER PICK</h3><div class="mini">Choose one.</div><div class="cardrow" style="justify-content:center;margin-top:10px">${opts.map((p, i) => `<div data-rxpick="${i}" style="cursor:pointer">${cardHTML(p)}</div>`).join('')}</div></div>`; box.classList.add('on'); box._opts = opts; saveRTS(); return; }
       cards = PACKS.find(p => p.id === v).open(); const notes = addCards(RTS, cards); saveRTS(); revealCards(cards, notes, () => rtsShow('events')); return;
+    }
+    if (a === 'workshop') {
+      const p = RTS.players.find(q => q.uid === document.getElementById('wsP').value), k = document.getElementById('wsS').value;
+      if (!p || PROFILE.coins < 25000) return;
+      if (psFor(p).includes(k)) { toastMsg(`${shortName(p.name)} already has ${PS[k].n}`); return; }
+      PROFILE.coins -= 25000; addPS(p, k); saveRTS(); toastMsg(`🛠 ${shortName(p.name)} learned ${PS[k].n}`); rtsShow('lab'); return;
     }
     if (a === 'cos') { const cost = { holo:1, d3:2, pristine:3 }[v]; if (x.gtok < cost) return; x.gtok -= cost; x.hol[b.dataset.u] = v; saveRTS(); rtsShow('gallery'); return; }
     if (a === 'submit') {
