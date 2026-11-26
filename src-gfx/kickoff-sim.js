@@ -173,6 +173,6 @@
   const _ss = showSettings;
   showSettings = function () { _ss(); put($('settings').querySelector('.card')); };
   let agreed = false; try { agreed = localStorage.getItem('kr_tos') === '1'; } catch (e) {}
-  if (!agreed) setTimeout(() => { const b = document.getElementById('mcx'); if (b && !b.classList.contains('on')) showTOS(); else setTimeout(showTOS, 4000); }, 1500);
+  if (!agreed) { const tryTOS = () => { const b = document.getElementById('mcx'); if (b && !b.classList.contains('on') && S.state === 'menu') showTOS(); else setTimeout(tryTOS, 2000); }; setTimeout(tryTOS, 1500); }
   try { if (S.state === 'menu' && $('home') && !$('home').classList.contains('hide')) showHome(); } catch (e) {}
 })();

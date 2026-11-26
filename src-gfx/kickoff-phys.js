@@ -225,6 +225,7 @@
       Ball physics (air drag + Magnus effect) based on <b>Johan Forslund</b>'s football-physics:
       <a href="https://github.com/johanforslund/football-physics" target="_blank" rel="noopener" style="color:#ffd23f">github.com/johanforslund/football-physics</a><br>
       Drag crisis and spin figures: "The physics of football", <a href="https://physicsworld.com/a/the-physics-of-football/" target="_blank" rel="noopener" style="color:#ffd23f">Physics World</a><br>
+      Keepers, shooting, stamina and team AI based on sports-science research: Mohr, Krustrup &amp; Bangsbo (fatigue, 2003), van der Kamp et al. (keeper timing, 2018), Barańska &amp; Eckes (keeper angles, 2020), StatsBomb (shot pressure), Spearman (pitch control) and the FIFA Training Centre (counter-pressing)<br>
       3D engine: three.js (MIT)</div>`);
     const keys = card.querySelector('.keys'); if (keys && !/M<\/b>/.test(keys.innerHTML)) keys.insertAdjacentHTML('beforeend', '<div><b>M</b> crowd noise on / low / off</div>');
   };
