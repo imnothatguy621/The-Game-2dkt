@@ -76,13 +76,14 @@ s = once(s, "teamK(sq[i].ovr, false, boost)", "teamK(playOvr(sq[i].ovr), false, 
 s = once(s, "const valueM = ovr => Math.max(1, Math.round(Math.pow(1.17, ovr - 70) * 4));", "const valueM = ovr => Math.max(1, Math.round(ovr <= 130 ? Math.pow(1.17, ovr - 70) * 4 : Math.pow(1.17, 60) * 4 * Math.pow(ovr / 130, 2)));", 'valuem')
 s = once(s, "const trainCost = ovr => Math.round(120 * Math.pow(1.065, ovr - 60) / 10) * 10;", "const trainCost = ovr => Math.round(120 * Math.pow(1.065, Math.min(ovr, 150) - 60) * (1 + Math.max(0, ovr - 150) * .03) / 10) * 10;", 'traincost')
 s = inject(s, open(os.path.join(R, 'src-gfx', 'kickoff-mgr.js')).read(), 'MGRX')
-s = inject(s, rd('kickoff.js') + '\n' + rd('social.js'))
+s = inject(s, rd('kickoff.js') + '\n' + rd('social.js') + '\n' + rd('gate.js'))
+s = inject(s, open(os.path.join(R, 'src-gfx', 'kickoff-admin.js')).read(), 'ADMX')
 open(p, 'w').write(s)
 
 # Skywarden
 p = os.path.join(R, 'skywarden.html'); s = open(p).read()
 s = once(s, "window.__SW = { SA,", "window.__SWS = { ACCT, PROF, acctInit, openOnline, netHost, netJoin, netLeave, NET, G, resume };\nwindow.__SW = { SA,", 'export')
 s = once(s, "function acctSignIn() {\n  if (!ACCT.sb) return;", "function acctSignIn() {\n  if (window.SOC && window.SOC.signIn) { if (G.state === 'play') pause && pause(); window.SOC.signIn(); return; }\n  if (!ACCT.sb) return;", 'signin')
-s = inject(s, rd('skywarden.js') + '\n' + rd('social.js'))
+s = inject(s, rd('skywarden.js') + '\n' + rd('social.js') + '\n' + rd('gate.js'))
 open(p, 'w').write(s)
 print('ok')

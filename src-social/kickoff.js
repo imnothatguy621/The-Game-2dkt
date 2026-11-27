@@ -62,8 +62,9 @@
     const { data, error } = await acct.rpc('soc_save_kickoff', { data:{ t, d } });
     if (!error && data === 'ok') { lastPush = js; localStorage.setItem('kr_sync_t', t); }
   }
-  setInterval(cloudPush, 30000);
+  setInterval(cloudPush, 15000);
   document.addEventListener('visibilitychange', () => { if (document.hidden) cloudPush(); });
+  addEventListener('pagehide', () => cloudPush());
 
   /* ---------- online screen: find a match, or play a bot if nobody's around ---------- */
   const ADJ = ['Swift', 'Golden', 'Rapid', 'Silent', 'Turbo', 'Royal', 'Lucky', 'Iron', 'Neon', 'Shadow', 'Blaze', 'Frosty', 'Cosmic', 'Wild', 'Mega', 'Super', 'Hyper', 'Clever', 'Brave', 'Sneaky'];
