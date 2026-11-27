@@ -11963,12 +11963,12 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.se
     const nearBox = clamp((Math.abs(focus.x) - (PL - 26)) / 14, 0, 1);       // 0 in midfield, 1 at the box
     const st = S.cam % 4;
     let fov = 50;
-    if (st === 0) { tgt.set(focus.x * .93, 13.5 - nearBox * 2.5, focus.z * .42 + 28 - nearBox * 4); look.set(focus.x * .96, 0, focus.z * .55 - 1); fov = 50 - nearBox * 5 + Math.min(6, sp * .15); }
-    else if (st === 1) { tgt.set(focus.x * .9, 24, focus.z * .3 + 46); look.set(focus.x * .95, 0, focus.z * .5 - 2); fov = 42 - nearBox * 3; }
+    if (st === 0) { tgt.set(focus.x * .95, 17 - nearBox * 2.5, focus.z * .4 + 40 - nearBox * 4); look.set(focus.x * .97, 0, focus.z * .6 - 1); fov = 26 - nearBox * 2 + Math.min(4, sp * .1); }   // real TV: far away on a long lens, so players look big and the pitch isn't stretched
+    else if (st === 1) { tgt.set(focus.x * .92, 26, focus.z * .3 + 52); look.set(focus.x * .95, 0, focus.z * .5 - 2); fov = 34 - nearBox * 3; }
     else if (st === 2) {
       const ad = attackDir();
       tgt.set(focus.x - ad * 7, 8 - nearBox * 1.5, focus.z * .6 + 17); look.set(focus.x + ad * 3, .5, focus.z * .7);
-      fov = 56 - nearBox * 6;
+      fov = 44 - nearBox * 5;
     } else {
       // behind your player, facing the way your team attacks, swinging a little with his movement
       const p = ctrl || ball.owner; if (!p) return false;
@@ -11976,8 +11976,9 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.se
       let d = want - pcFace; d = Math.atan2(Math.sin(d), Math.cos(d)); pcFace += d * Math.min(1, dt * 2.5);
       const fx = Math.sin(pcFace), fz = Math.cos(pcFace);
       tgt.set(p.pos.x - fx * 9, 4.2, p.pos.z - fz * 9); look.set(p.pos.x + fx * 8 + (b.x - p.pos.x) * .35, 1, p.pos.z + fz * 8 + (b.z - p.pos.z) * .35);
-      fov = 60;
+      fov = 50;
     }
+    if (camera.aspect < 1.3) fov *= 1.3;          // portrait / narrow screens see a bit more
     if (init) { camera.position.copy(tgt); camLook.copy(look); init = false; }
     const kp = 1 - Math.exp(-dt * (st === 3 ? 4 : 2.4)), kl = 1 - Math.exp(-dt * (st === 3 ? 6 : 3.6));
     camera.position.lerp(tgt, kp); camLook.lerp(look, kl); camera.lookAt(camLook);
