@@ -5234,82 +5234,84 @@ body.inmenu .hud,body.inmenu #touch,body.inmenu #pauseBtn,body.inmenu #camBtn{di
 // kit: [primary, secondary, pattern, shorts, socks]; patterns: solid stripes hoops band sleeves hhalf checks
 const LEAGUES = [
   { id:'eng', name:'England', flag:'🏴', clubs:[
-    ['mci','Man City','MCI',94,['#6cabdd','#ffffff','solid','#ffffff','#6cabdd'],1],
-    ['liv','Liverpool','LIV',89,['#c8102e','#c8102e','solid','#c8102e','#c8102e']],
-    ['ars','Arsenal','ARS',89,['#ef0107','#ffffff','sleeves','#ffffff','#ffffff']],
-    ['che','Chelsea','CHE',84,['#034694','#034694','solid','#034694','#ffffff']],
+    ['mci','Man City','MCI',89,['#6cabdd','#ffffff','solid','#ffffff','#6cabdd']],
+    ['liv','Liverpool','LIV',86,['#c8102e','#c8102e','solid','#c8102e','#c8102e']],
+    ['ars','Arsenal','ARS',91,['#ef0107','#ffffff','sleeves','#ffffff','#ffffff']],
+    ['che','Chelsea','CHE',85,['#034694','#034694','solid','#034694','#ffffff']],
     ['mun','Man United','MUN',83,['#da291c','#da291c','solid','#ffffff','#111111']],
-    ['tot','Tottenham','TOT',83,['#ffffff','#132257','solid','#132257','#ffffff']],
-    ['new','Newcastle','NEW',83,['#111111','#ffffff','stripes','#111111','#111111']],
-    ['avl','Aston Villa','AVL',82,['#670e36','#95bfe5','sleeves','#ffffff','#670e36']] ]},
+    ['tot','Tottenham','TOT',84,['#ffffff','#132257','solid','#132257','#ffffff']],
+    ['new','Newcastle','NEW',82,['#111111','#ffffff','stripes','#111111','#111111']],
+    ['avl','Aston Villa','AVL',86,['#670e36','#95bfe5','sleeves','#ffffff','#670e36']] ]},
   { id:'esp', name:'Spain', flag:'🇪🇸', clubs:[
-    ['bar','Barcelona','BAR',95,['#a50044','#004d98','stripes','#004d98','#a50044'],1],
-    ['rma','Real Madrid','RMA',91,['#ffffff','#f2f2f2','solid','#ffffff','#ffffff']],
-    ['atm','Atlético Madrid','ATM',85,['#cb3524','#ffffff','stripes','#272e61','#cb3524']],
-    ['ath','Athletic Club','ATH',82,['#ee2523','#ffffff','stripes','#111111','#111111']],
+    ['bar','Barcelona','BAR',88,['#a50044','#004d98','stripes','#004d98','#a50044']],
+    ['rma','Real Madrid','RMA',87,['#ffffff','#f2f2f2','solid','#ffffff','#ffffff']],
+    ['atm','Atlético Madrid','ATM',84,['#cb3524','#ffffff','stripes','#272e61','#cb3524']],
+    ['ath','Athletic Club','ATH',80,['#ee2523','#ffffff','stripes','#111111','#111111']],
     ['vil','Villarreal','VIL',81,['#ffe667','#ffe667','solid','#ffe667','#ffe667']],
-    ['rso','Real Sociedad','RSO',80,['#0067b1','#ffffff','stripes','#ffffff','#0067b1']],
+    ['rso','Real Sociedad','RSO',78,['#0067b1','#ffffff','stripes','#ffffff','#0067b1']],
     ['bet','Real Betis','BET',80,['#00954c','#ffffff','stripes','#00954c','#00954c']],
-    ['sev','Sevilla','SEV',79,['#ffffff','#d71920','solid','#ffffff','#ffffff']] ]},
+    ['sev','Sevilla','SEV',77,['#ffffff','#d71920','solid','#ffffff','#ffffff']] ]},
   { id:'ita', name:'Italy', flag:'🇮🇹', clubs:[
-    ['int','Inter','INT',88,['#0068a8','#111111','stripes','#111111','#111111']],
-    ['nap','Napoli','NAP',86,['#12a0d7','#12a0d7','solid','#ffffff','#12a0d7']],
-    ['juv','Juventus','JUV',85,['#ffffff','#111111','stripes','#ffffff','#ffffff']],
-    ['mil','AC Milan','MIL',85,['#fb090b','#111111','stripes','#ffffff','#111111']],
-    ['ata','Atalanta','ATA',84,['#1e71b8','#111111','stripes','#111111','#111111']],
-    ['rom','Roma','ROM',82,['#8e1f2f','#f0bc42','solid','#8e1f2f','#8e1f2f']],
-    ['laz','Lazio','LAZ',81,['#87d8f7','#87d8f7','solid','#ffffff','#87d8f7']],
-    ['fio','Fiorentina','FIO',79,['#482e92','#482e92','solid','#ffffff','#482e92']] ]},
+    ['int','Inter','INT',86,['#0068a8','#111111','stripes','#111111','#111111']],
+    ['nap','Napoli','NAP',82,['#12a0d7','#12a0d7','solid','#ffffff','#12a0d7']],
+    ['juv','Juventus','JUV',82,['#ffffff','#111111','stripes','#ffffff','#ffffff']],
+    ['mil','AC Milan','MIL',80,['#fb090b','#111111','stripes','#ffffff','#111111']],
+    ['ata','Atalanta','ATA',81,['#1e71b8','#111111','stripes','#111111','#111111']],
+    ['rom','Roma','ROM',83,['#8e1f2f','#f0bc42','solid','#8e1f2f','#8e1f2f']],
+    ['laz','Lazio','LAZ',79,['#87d8f7','#87d8f7','solid','#ffffff','#87d8f7']],
+    ['fio','Fiorentina','FIO',78,['#482e92','#482e92','solid','#ffffff','#482e92']] ]},
   { id:'ger', name:'Germany', flag:'🇩🇪', clubs:[
     ['bay','Bayern Munich','BAY',91,['#dc052d','#dc052d','solid','#dc052d','#dc052d']],
-    ['lev','Leverkusen','LEV',86,['#e32221','#111111','solid','#111111','#e32221']],
-    ['bvb','Dortmund','BVB',85,['#fde100','#fde100','solid','#111111','#fde100']],
-    ['rbl','RB Leipzig','RBL',82,['#ffffff','#dd0741','solid','#ffffff','#ffffff']],
+    ['lev','Leverkusen','LEV',82,['#e32221','#111111','solid','#111111','#e32221']],
+    ['bvb','Dortmund','BVB',84,['#fde100','#fde100','solid','#111111','#fde100']],
+    ['rbl','RB Leipzig','RBL',80,['#ffffff','#dd0741','solid','#ffffff','#ffffff']],
     ['vfb','Stuttgart','VFB',80,['#ffffff','#e32219','hoops1','#ffffff','#ffffff']],
-    ['sge','Frankfurt','SGE',80,['#111111','#e1000f','solid','#111111','#111111']],
-    ['wob','Wolfsburg','WOB',78,['#65b32e','#ffffff','solid','#ffffff','#65b32e']],
+    ['sge','Frankfurt','SGE',79,['#111111','#e1000f','solid','#111111','#111111']],
+    ['wob','Wolfsburg','WOB',76,['#65b32e','#ffffff','solid','#ffffff','#65b32e']],
     ['scf','Freiburg','SCF',78,['#e2001a','#111111','solid','#ffffff','#e2001a']] ]},
   { id:'fra', name:'France', flag:'🇫🇷', clubs:[
-    ['psg','Paris SG','PSG',90,['#004170','#da291c','band','#004170','#004170']],
-    ['mon','Monaco','MON',82,['#e7000f','#ffffff','hhalf','#ffffff','#e7000f']],
-    ['om','Marseille','OM',82,['#ffffff','#2faee0','solid','#ffffff','#ffffff']],
-    ['lil','Lille','LIL',81,['#e01e13','#e01e13','solid','#1b2340','#e01e13']],
-    ['ol','Lyon','OL',80,['#ffffff','#14387f','solid','#ffffff','#ffffff']],
-    ['rcl','Lens','RCL',80,['#ffd400','#e30613','sleeves','#111111','#ffd400']],
-    ['nic','Nice','NIC',79,['#c8102e','#111111','stripes','#111111','#111111']],
-    ['ren','Rennes','REN',78,['#e13327','#111111','solid','#111111','#111111']] ]},
+    ['psg','Paris SG','PSG',88,['#004170','#da291c','band','#004170','#004170']],
+    ['mon','Monaco','MON',80,['#e7000f','#ffffff','hhalf','#ffffff','#e7000f']],
+    ['om','Marseille','OM',80,['#ffffff','#2faee0','solid','#ffffff','#ffffff']],
+    ['lil','Lille','LIL',80,['#e01e13','#e01e13','solid','#1b2340','#e01e13']],
+    ['ol','Lyon','OL',79,['#ffffff','#14387f','solid','#ffffff','#ffffff']],
+    ['rcl','Lens','RCL',79,['#ffd400','#e30613','sleeves','#111111','#ffd400']],
+    ['nic','Nice','NIC',78,['#c8102e','#111111','stripes','#111111','#111111']],
+    ['ren','Rennes','REN',77,['#e13327','#111111','solid','#111111','#111111']] ]},
   { id:'por', name:'Portugal', flag:'🇵🇹', clubs:[
     ['ben','Benfica','BEN',84,['#e83030','#e83030','solid','#ffffff','#e83030']],
     ['spo','Sporting CP','SCP',84,['#008057','#ffffff','hoops','#111111','#008057']],
-    ['fcp','Porto','FCP',84,['#00428c','#ffffff','stripes','#00428c','#00428c']],
-    ['bra','Braga','BRA',79,['#da020e','#ffffff','sleeves','#ffffff','#da020e']],
-    ['vsc','Vitória SC','VSC',76,['#ffffff','#111111','solid','#111111','#ffffff']],
-    ['rav','Rio Ave','RAV',74,['#00843d','#ffffff','stripes','#ffffff','#00843d']],
-    ['mor','Moreirense','MOR',73,['#00a650','#00a650','solid','#ffffff','#00a650']],
+    ['fcp','Porto','FCP',82,['#00428c','#ffffff','stripes','#00428c','#00428c']],
+    ['bra','Braga','BRA',78,['#da020e','#ffffff','sleeves','#ffffff','#da020e']],
+    ['vsc','Vitória SC','VSC',75,['#ffffff','#111111','solid','#111111','#ffffff']],
+    ['rav','Rio Ave','RAV',72,['#00843d','#ffffff','stripes','#ffffff','#00843d']],
+    ['mor','Moreirense','MOR',72,['#00a650','#00a650','solid','#ffffff','#00a650']],
     ['cpi','Casa Pia','CPI',72,['#111111','#111111','solid','#ffffff','#111111']] ]},
 ];
 const NATIONS = [
-  ['fra','France',90,['#21304d','#21304d','solid','#ffffff','#e1000f']], ['esp','Spain',90,['#c60b1e','#c60b1e','solid','#1b2a6b','#1b2a6b']],
-  ['arg','Argentina',90,['#75aadb','#ffffff','stripes','#111111','#ffffff']], ['eng','England',89,['#ffffff','#ffffff','solid','#1b2a4a','#ffffff']],
-  ['bra','Brazil',89,['#fedd00','#009c3b','solid','#002776','#ffffff']], ['por','Portugal',88,['#c8102e','#006600','solid','#c8102e','#c8102e']],
-  ['ger','Germany',87,['#ffffff','#111111','solid','#111111','#ffffff']], ['ned','Netherlands',86,['#f36c21','#f36c21','solid','#f36c21','#f36c21']],
-  ['ita','Italy',85,['#0066cc','#0066cc','solid','#ffffff','#0066cc']], ['bel','Belgium',84,['#e30613','#e30613','solid','#e30613','#e30613']],
-  ['cro','Croatia',83,['#ff0000','#ffffff','checks','#ffffff','#1b3b8a']], ['uru','Uruguay',83,['#5cbfeb','#5cbfeb','solid','#111111','#111111']],
-  ['col','Colombia',82,['#fcd116','#fcd116','solid','#003893','#ffffff']], ['mar','Morocco',82,['#c1272d','#c1272d','solid','#006233','#c1272d']],
-  ['jpn','Japan',81,['#1b3b8a','#1b3b8a','solid','#1b3b8a','#1b3b8a']], ['sui','Switzerland',81,['#e30613','#e30613','solid','#ffffff','#e30613']],
-  ['den','Denmark',81,['#c8102e','#c8102e','solid','#ffffff','#c8102e']], ['nor','Norway',81,['#ba0c2f','#ba0c2f','solid','#ffffff','#00205b']],
-  ['usa','USA',80,['#ffffff','#ffffff','solid','#1b2a4a','#ffffff']], ['mex','Mexico',80,['#006847','#006847','solid','#ffffff','#ce1126']],
-  ['sen','Senegal',80,['#ffffff','#00853f','solid','#ffffff','#ffffff']], ['aut','Austria',80,['#ed2939','#ed2939','solid','#ffffff','#ed2939']],
-  ['tur','Türkiye',80,['#e30a17','#e30a17','solid','#ffffff','#e30a17']], ['kor','South Korea',79,['#c60c30','#c60c30','solid','#111111','#c60c30']],
-  ['ecu','Ecuador',79,['#ffdd00','#ffdd00','solid','#034ea2','#ffdd00']], ['nga','Nigeria',79,['#008751','#008751','solid','#008751','#008751']],
-  ['pol','Poland',78,['#ffffff','#ffffff','solid','#dc143c','#ffffff']], ['can','Canada',77,['#d80621','#d80621','solid','#d80621','#d80621']],
-  ['egy','Egypt',77,['#c8102e','#c8102e','solid','#ffffff','#c8102e']], ['aus','Australia',76,['#ffcd00','#ffcd00','solid','#00843d','#ffcd00']],
-  ['ksa','Saudi Arabia',74,['#006c35','#006c35','solid','#006c35','#006c35']], ['ind','India',70,['#1c4e9c','#1c4e9c','solid','#ffffff','#1c4e9c']],
+  ['fra','France',89,['#21304d','#21304d','solid','#ffffff','#e1000f']], ['esp','Spain',90,['#c60b1e','#c60b1e','solid','#1b2a6b','#1b2a6b']],
+  ['arg','Argentina',89,['#75aadb','#ffffff','stripes','#111111','#ffffff']], ['eng','England',88,['#ffffff','#ffffff','solid','#1b2a4a','#ffffff']],
+  ['bra','Brazil',86,['#fedd00','#009c3b','solid','#002776','#ffffff']], ['por','Portugal',86,['#c8102e','#006600','solid','#c8102e','#c8102e']],
+  ['ger','Germany',84,['#ffffff','#111111','solid','#111111','#ffffff']], ['ned','Netherlands',85,['#f36c21','#f36c21','solid','#f36c21','#f36c21']],
+  ['ita','Italy',82,['#0066cc','#0066cc','solid','#ffffff','#0066cc']], ['bel','Belgium',83,['#e30613','#e30613','solid','#e30613','#e30613']],
+  ['cro','Croatia',83,['#ff0000','#ffffff','checks','#ffffff','#1b3b8a']], ['uru','Uruguay',82,['#5cbfeb','#5cbfeb','solid','#111111','#111111']],
+  ['col','Colombia',83,['#fcd116','#fcd116','solid','#003893','#ffffff']], ['mar','Morocco',86,['#c1272d','#c1272d','solid','#006233','#c1272d']],
+  ['jpn','Japan',81,['#1b3b8a','#1b3b8a','solid','#1b3b8a','#1b3b8a']], ['sui','Switzerland',80,['#e30613','#e30613','solid','#ffffff','#e30613']],
+  ['den','Denmark',79,['#c8102e','#c8102e','solid','#ffffff','#c8102e']], ['nor','Norway',80,['#ba0c2f','#ba0c2f','solid','#ffffff','#00205b']],
+  ['usa','USA',81,['#ffffff','#ffffff','solid','#1b2a4a','#ffffff']], ['mex','Mexico',82,['#006847','#006847','solid','#ffffff','#ce1126']],
+  ['sen','Senegal',81,['#ffffff','#00853f','solid','#ffffff','#ffffff']], ['aut','Austria',79,['#ed2939','#ed2939','solid','#ffffff','#ed2939']],
+  ['tur','Türkiye',77,['#e30a17','#e30a17','solid','#ffffff','#e30a17']], ['kor','South Korea',79,['#c60c30','#c60c30','solid','#111111','#c60c30']],
+  ['ecu','Ecuador',79,['#ffdd00','#ffdd00','solid','#034ea2','#ffdd00']], ['nga','Nigeria',77,['#008751','#008751','solid','#008751','#008751']],
+  ['pol','Poland',76,['#ffffff','#ffffff','solid','#dc143c','#ffffff']], ['can','Canada',78,['#d80621','#d80621','solid','#d80621','#d80621']],
+  ['egy','Egypt',77,['#c8102e','#c8102e','solid','#ffffff','#c8102e']], ['aus','Australia',77,['#ffcd00','#ffcd00','solid','#00843d','#ffcd00']],
+  ['ksa','Saudi Arabia',73,['#006c35','#006c35','solid','#006c35','#006c35']], ['ind','India',66,['#1c4e9c','#1c4e9c','solid','#ffffff','#1c4e9c']],
 ];
 const ALL = {};
 for (const L of LEAGUES) L.clubs = L.clubs.map(c => (ALL['c-' + c[0]] = { id:'c-' + c[0], name:c[1], code:c[2], ovr:c[3], kit:c[4], admin:!!c[5], league:L.id, nation:false }));
 for (const n of NATIONS) ALL['n-' + n[0]] = { id:'n-' + n[0], name:n[1], code:n[0].toUpperCase(), ovr:n[2], kit:n[3], admin:false, nation:true };
 const NATION_LIST = NATIONS.map(n => ALL['n-' + n[0]]);
+// Soccer Aid: a made-up all-star team for admin accounts only. Not in any league, never an AI opponent.
+ALL['c-sai'] = { id:'c-sai', name:'Soccer Aid', code:'SAI', ovr:999, kit:['#ffd23f','#111111','band','#111111','#ffd23f'], admin:true, league:null, nation:false, special:true };
 const CUP_CLUBS = () => { const take = { eng:6, esp:6, ita:6, ger:6, fra:4, por:4 }; const out = []; for (const L of LEAGUES) out.push(...L.clubs.slice(0, take[L.id])); return out; };
 const ADMIN_HASH = '3db9b1b51c0467c9bde48dfbb336216cd124e6c3fa85be9aee8d4c5c3ba09db6';
 const OP_OVR = 99;
@@ -5419,7 +5421,9 @@ function bestXI(pool) {
   }
   return xi;
 }
+const SOCCER_AID = ['Thunder Boots','The Wall','Rocket Rex','Captain Chaos','Nutmeg King','Big Bossman','Turbo Twinkle','Zigzag','Laser Feet','Mr Bicycle Kick','Banana Shot'];
 function autoSquad(def) {
+  if (def.id === 'c-sai') return SOCCER_AID.map((n, i) => ({ name:n, ovr:999, num:i + 1 }));
   const pool = def.nation ? PDB.filter(p => p.nat === def.id.slice(2)) : PDB.filter(p => p.club === def.id);
   const xi = bestXI(pool);
   const out = [];
@@ -7170,7 +7174,7 @@ async function checkAdmin(code) { if (!code || !crypto.subtle) return false; ret
 (async () => { try { const c = localStorage.getItem('kr_admin'); if (c && await checkAdmin(c)) { ADMIN = true; if (!$('home').classList.contains('hide')) showHome(); } } catch (e) {} })();
 const shown = id => { document.querySelectorAll('.ov').forEach(o => o.classList.toggle('hide', o.id !== id)); document.body.classList.add('inmenu'); document.body.classList.remove('playing'); };
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
-const effOvr = (def, asUser) => def.admin && asUser && ADMIN ? OP_OVR : def.ovr;
+const effOvr = (def, asUser) => def.admin && asUser && ADMIN ? Math.max(OP_OVR, def.ovr) : def.ovr;
 function swatch(def) { const k = def.kit; let bg = k[0]; if (k[2] === 'stripes') bg = `repeating-linear-gradient(90deg,${k[0]} 0 6px,${k[1]} 6px 12px)`; else if (k[2] === 'hoops') bg = `repeating-linear-gradient(0deg,${k[0]} 0 6px,${k[1]} 6px 12px)`; else if (k[2] === 'checks') bg = `repeating-conic-gradient(${k[0]} 0 25%,${k[1]} 0 50%) 0 0/12px 12px`; return `<span class="swatch" style="background:${bg}"><i style="background:${k[3]}"></i></span>`; }
 
 function showSettings() {
@@ -7242,8 +7246,9 @@ function drawPick() {
   if (opts.list) list = opts.list;
   else {
     const ts = LEAGUES.map(L => [L.id, L.name]); if (opts.tabs === 'all') ts.push(['nat', 'Nations']);
+    if (ADMIN && opts.asUser && opts.tabs === 'all') ts.push(['spc', '⭐ Soccer Aid']); else if (tab === 'spc') PICK.tab = LEAGUES[0].id;
     tabs = `<div class="tabs">${ts.map(([id, n]) => `<button type="button" class="${id === tab ? 'sel' : ''}" data-tab="${id}">${n}</button>`).join('')}</div>`;
-    list = tab === 'nat' ? NATION_LIST : LEAGUES.find(L => L.id === tab).clubs;
+    list = tab === 'nat' ? NATION_LIST : PICK.tab === 'spc' ? [ALL['c-sai']] : (LEAGUES.find(L => L.id === PICK.tab) || LEAGUES[0]).clubs;
   }
   list = list.slice().sort((a, b) => effOvr(b, opts.asUser) - effOvr(a, opts.asUser));
   $('pick').innerHTML = `<div class="card">
@@ -13630,6 +13635,8 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.se
   startMatch = function (cfg) {
     const r = _sm(cfg);
     try {
+      // Soccer Aid (the admin all-star team, everyone rated 999) plays like it: faster, deadlier, a wall in goal
+      if (S.teams) for (const t of S.teams) if (t.def && t.def.id === 'c-sai') { t.K.spd *= 1.3; t.K.shot *= 1.35; t.K.acc = .995; t.K.gk = Math.max(t.K.gk, 4); t.K.tackle += .6; t.players.forEach(p => p.spd *= 1.3); }
       if (isAdm() && S.teams) for (const t of S.teams) {
         const mine = isHuman(t);
         if (mine && H.sup) { t.K.spd *= 1.3; t.K.shot *= 1.25; t.K.acc = .99; t.K.tackle += .5; t.players.forEach(p => p.spd *= 1.3); }

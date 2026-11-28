@@ -39,6 +39,8 @@
   startMatch = function (cfg) {
     const r = _sm(cfg);
     try {
+      // Soccer Aid (the admin all-star team, everyone rated 999) plays like it: faster, deadlier, a wall in goal
+      if (S.teams) for (const t of S.teams) if (t.def && t.def.id === 'c-sai') { t.K.spd *= 1.3; t.K.shot *= 1.35; t.K.acc = .995; t.K.gk = Math.max(t.K.gk, 4); t.K.tackle += .6; t.players.forEach(p => p.spd *= 1.3); }
       if (isAdm() && S.teams) for (const t of S.teams) {
         const mine = isHuman(t);
         if (mine && H.sup) { t.K.spd *= 1.3; t.K.shot *= 1.25; t.K.acc = .99; t.K.tackle += .5; t.players.forEach(p => p.spd *= 1.3); }
