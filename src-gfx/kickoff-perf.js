@@ -6,20 +6,27 @@
    - Ball spin you can see: rolling uses true roll-without-slipping, flights use the real spin axis (no double spinning). */
 (function () {
   /* ---------------- dynamic resolution ---------------- */
-  const PERF = window.PERF = { on: true, pr: null, max: null, min: 1, log: [] };
+  const PERF = window.PERF = { on: true, pr: null, max: null, min: 1, log: [], slow: 0, dropped: false };
   let acc = 0, frames = 0, good = 0, lastT = performance.now();
   const _present = present;
   present = function (sc, cam) {
+    // nothing to draw behind the sign-in screen or a full-screen menu card: skip the 3D work
+    if (window.KR_GATE && KR_GATE.isOpen()) return;
     _present(sc, cam);
     const now = performance.now(), dt = now - lastT; lastT = now;
     if (!PERF.on || document.hidden || dt > 1000) return;
-    const inMatch = S.state === 'play' || S.state === 'setpiece' || S.state === 'kickoff' || S.state === 'replay' || S.state === 'goal';
-    if (!inMatch) return;
+
     acc += dt; frames++;
     if (acc < 1500) return;
     const fps = frames * 1000 / acc; acc = 0; frames = 0;
     if (PERF.max == null) { PERF.max = renderer.getPixelRatio(); PERF.pr = PERF.max; }
     let next = PERF.pr;
+    // already at the lowest resolution and still slow: drop the graphics quality one step (once per visit)
+    if (fps < 40 && PERF.pr <= PERF.min + .01 && GSET.q > 0 && !PERF.dropped) {
+      if (++PERF.slow >= 2) { PERF.dropped = true; PERF.slow = 0; const q = GSET.q - 1; applyQuality(q); try { const st = JSON.parse(localStorage.getItem('kr_set') || '{}'); st.gfx = q; localStorage.setItem('kr_set', JSON.stringify(st)); } catch (e) {} PERF.log.push('quality→' + q); if (typeof toastMsg === 'function') toastMsg('Graphics lowered to keep the game smooth (change it in Settings)'); }
+      return;
+    }
+    PERF.slow = 0;
     if (fps < 52 && PERF.pr > PERF.min) { next = Math.max(PERF.min, PERF.pr - (fps < 40 ? .35 : .2)); good = 0; }
     else if (fps > 58) { if (++good >= 3 && PERF.pr < PERF.max) { next = Math.min(PERF.max, PERF.pr + .15); good = 0; } }
     else good = 0;

@@ -263,7 +263,9 @@
     else if (f === 'addform') { const i = document.getElementById('socAdd'); addFriend(i.value); i.value = ''; }
   });
   box.addEventListener('click', async e => {
-    const b = e.target.closest('[data-s],[data-t],[data-inv],[data-acc],[data-dec],[data-rm]'); if (!b) return;
+    // a form's submit button (SEND LINK, SAVE USERNAME, ADD): let the form submit normally
+    if (e.target.closest('button[type="submit"]')) return;
+    const b = e.target.closest('[data-s],[data-t],[data-inv],[data-acc],[data-dec],[data-rm]'); if (!b || b.tagName === 'FORM') return;
     e.preventDefault();
     const s = b.dataset.s;
     if (s === 'close') close();
