@@ -1516,6 +1516,7 @@ const DEPLOY_LABEL = { gantry:'Gantry', case:'Suitcase', nano:'Nanotech', remote
 /* ================= Renderer & scene ================= */
 if (window.__noWebGL) { window.__swShowError('3D graphics (WebGL) are turned off or blocked in this browser.\nChrome: Settings > System > turn on "Use graphics acceleration when available", then restart Chrome.\nOn a school or work device, WebGL may be blocked by the administrator.'); }
 const renderer = new THREE.WebGLRenderer({ antialias:true, powerPreference:'high-performance' });
+window.__SW_RENDERER = renderer;
 renderer.setPixelRatio(Math.min(devicePixelRatio, isTouch ? 1.5 : 1.75));
 renderer.setSize(innerWidth, innerHeight);
 $('stage').appendChild(renderer.domElement);
@@ -13665,6 +13666,14 @@ window.__SW = { SA, saPower, saEnable, CR, modPrice, PROF, STATS, profEdit, prof
   // once you're back online and signed in, the offline pass ends
   setInterval(() => { if (offline && SOC.user) { offline = false; sessionStorage.removeItem('kr_gate_off'); } }, 3000);
   window.KR_GATE = { update, probe, isOpen:() => !g.hidden };
+  // Skywarden: don't spend the GPU drawing the 3D world hidden behind the sign-in screen
+  if (A.game === 'skywarden') try {
+    const R = window.__SW_RENDERER;
+    if (R && R.render && !R.__gated) {
+      const r0 = R.render; R.__gated = true;
+      R.render = function (sc, cam) { if (!g.hidden) return; return r0.call(this, sc, cam); };
+    }
+  } catch (e) {}
 })();
 
 </script>

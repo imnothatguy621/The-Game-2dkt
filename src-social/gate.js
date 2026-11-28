@@ -82,4 +82,12 @@
   // once you're back online and signed in, the offline pass ends
   setInterval(() => { if (offline && SOC.user) { offline = false; sessionStorage.removeItem('kr_gate_off'); } }, 3000);
   window.KR_GATE = { update, probe, isOpen:() => !g.hidden };
+  // Skywarden: don't spend the GPU drawing the 3D world hidden behind the sign-in screen
+  if (A.game === 'skywarden') try {
+    const R = window.__SW_RENDERER;
+    if (R && R.render && !R.__gated) {
+      const r0 = R.render; R.__gated = true;
+      R.render = function (sc, cam) { if (!g.hidden) return; return r0.call(this, sc, cam); };
+    }
+  } catch (e) {}
 })();
